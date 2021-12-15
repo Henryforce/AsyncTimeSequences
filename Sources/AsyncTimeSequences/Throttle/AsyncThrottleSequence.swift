@@ -54,8 +54,9 @@ extension AsyncThrottleSequence: AsyncSequence {
         let interval: S.SchedulerTimeType.Stride
         let scheduler: S
         let latest: Bool
-
-        var latestElement: Base.Element?
+        
+        var savedElement: Base.Element?
+        var readyToSendFirst = false
         var started = false
         var shouldFinish = false
 
@@ -72,35 +73,58 @@ extension AsyncThrottleSequence: AsyncSequence {
         }
 
         func putNext(_ element: Base.Element) {
-            latestElement = element
-//            print("\tSaved as latest: \(element)")
-
-            guard !started else { return }
-            started = true
-//            print("\t\tStarted: \(started)")
-            Task {
-                await scheduler.sleep(interval)
-//                print("\tFinished waiting for \(element)")
-                readyToThrottle(with: element)
+            savedElement = element
+            
+            if !started { // Always yield the first element
+                yield()
+                start()
+            } else {
+                scheduler.schedule(interval: interval, closure: { })
+            }
+            
+            if !latest, readyToSendFirst {
+                readyToSendFirst = false
+                yield()
             }
         }
 
         func finish() {
             shouldFinish = true
-            if !started {
+            if savedElement == nil, !started {
                 continuation.finish()
             }
         }
-
-        private func readyToThrottle(with initialElement: Base.Element) {
-            if let elementToYield = latest ? latestElement : initialElement {
-//                print("\tAbout to yield inside \(elementToYield)")
-                continuation.yield(elementToYield)
+        
+        func start() {
+            guard !started else { return }
+            started = true
+            runTimer()
+        }
+        
+        private func yield() {
+            if let element = savedElement {
+                continuation.yield(element)
+                savedElement = nil
             }
-            started = false
+            
             if shouldFinish {
                 continuation.finish()
             }
+        }
+        
+        private func runTimer() {
+            guard !shouldFinish else { return }
+            readyToSendFirst = true
+            scheduler.schedule(interval: interval, closure: { [weak self] in
+                await self?.closureFromTimer()
+            })
+        }
+        
+        private func closureFromTimer() {
+            if latest {
+                yield()
+            }
+            runTimer()
         }
     }
 
@@ -151,119 +175,3 @@ extension AsyncThrottleSequence: AsyncSequence {
         }.makeAsyncIterator()
     }
 }
-
-//public struct AsyncThrottleSequence<Base: AsyncSequence> {
-//    @usableFromInline
-//    let base: Base
-//
-//    @usableFromInline
-//    let nanoseconds: UInt64
-//
-//    @usableFromInline
-//    let latest: Bool
-//
-//    @usableFromInline
-//    init(_ base: Base, nanoseconds: UInt64, latest: Bool) {
-//        self.base = base
-//        self.nanoseconds = nanoseconds
-//        self.latest = latest
-//    }
-//}
-//
-//extension AsyncThrottleSequence: AsyncSequence {
-//    /// The type of element produced by this asynchronous sequence.
-//    ///
-//    /// The map sequence produces whatever type of element its transforming
-//    /// closure produces.
-//    public typealias Element = Base.Element
-//    /// The type of iterator that produces elements of the sequence.
-//    public typealias AsyncIterator = AsyncStream<Base.Element>.Iterator
-//
-//    actor ThrottleActor {
-//        let continuation: AsyncStream<Base.Element>.Continuation
-//        let nanoseconds: UInt64
-//        let latest: Bool
-//
-//        var latestElement: Base.Element?
-//        var started = false
-//        var shouldFinish = false
-//
-//        init(continuation: AsyncStream<Base.Element>.Continuation, nanoseconds: UInt64, latest: Bool) {
-//            self.continuation = continuation
-//            self.nanoseconds = nanoseconds
-//            self.latest = latest
-//        }
-//
-//        func putNext(_ element: Base.Element) {
-//            latestElement = element
-//            print("\tSaved as latest: \(element)")
-//
-//            guard !started else { return }
-//            started = true
-//            print("\t\tStarted: \(started)")
-//            Task {
-//                await Task.sleep(nanoseconds)
-//                print("\tFinished waiting for \(element)")
-//                readyToThrottle(with: element)
-//            }
-//        }
-//
-//        func finish() {
-//            shouldFinish = true
-//            if !started {
-//                continuation.finish()
-//            }
-//        }
-//
-//        private func readyToThrottle(with initialElement: Base.Element) {
-//            print("\tAbout to yield inside \(latestElement ?? initialElement)")
-//            continuation.yield(latestElement ?? initialElement)
-//            started = false
-//            if shouldFinish {
-//                continuation.finish()
-//            }
-//        }
-//    }
-//
-//    struct Throttle {
-////        @usableFromInline
-//        var baseIterator: Base.AsyncIterator
-//        let actor: ThrottleActor
-//
-//        init(
-//            baseIterator: Base.AsyncIterator,
-//            continuation: AsyncStream<Base.Element>.Continuation,
-//            nanoseconds: UInt64,
-//            latest: Bool
-//        ) {
-//            self.baseIterator = baseIterator
-//            self.actor = ThrottleActor(
-//                continuation: continuation,
-//                nanoseconds: nanoseconds,
-//                latest: latest
-//            )
-//        }
-//
-//        mutating func start() async {
-//            while let element = try? await baseIterator.next() {
-//                await actor.putNext(element)
-//            }
-//            await actor.finish()
-//        }
-//    }
-//
-////    @inlinable
-//    public __consuming func makeAsyncIterator() -> AsyncStream<Base.Element>.Iterator {
-//        return AsyncStream { (continuation: AsyncStream<Base.Element>.Continuation) in
-//            Task {
-//                var throttle = Throttle(
-//                    baseIterator: base.makeAsyncIterator(),
-//                    continuation: continuation,
-//                    nanoseconds: nanoseconds,
-//                    latest: latest
-//                )
-//                await throttle.start()
-//            }
-//        }.makeAsyncIterator()
-//    }
-//}

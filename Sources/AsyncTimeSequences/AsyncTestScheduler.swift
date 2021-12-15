@@ -2,14 +2,14 @@
 //  AsyncTestScheduler.swift
 //  AsyncTimeSequences
 //
-//  Created by Henry Javier Serrano Echeverria on 14/11/21.
+//  Copied from combine-schedulers by Henry Javier Serrano Echeverria on 14/11/21.
 //
 
 import Combine
 import Foundation
 
 // This file is inspired by the TestScheduler found on combine-schedulers. Check it out!
-// TODO: adjust methods to prepare for shipping and put in a different sub-package
+// TODO: decide if it required to be shipped...
 
 /// A scheduler whose current time and execution can be controlled in a deterministic manner.
 ///
@@ -243,12 +243,12 @@ extension OperationQueue {
     }
 }
 
-extension RunLoop {
-    /// An async test scheduler of run loops.
-    public static var asyncTest: AsyncTestSchedulerOf<RunLoop> {
-        .init(now: .init(.init(timeIntervalSince1970: 0)))
-    }
-}
+//extension RunLoop {
+//    /// An async test scheduler of run loops.
+//    public static var asyncTest: AsyncTestSchedulerOf<RunLoop> {
+//        .init(now: .init(.init(timeIntervalSince1970: 0)))
+//    }
+//}
 
 /// A convenience type to specify a `AsyncTestSchedulerOf` by the scheduler it wraps rather than by the
 /// time type and options type.

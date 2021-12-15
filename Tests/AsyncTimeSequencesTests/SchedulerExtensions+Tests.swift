@@ -9,8 +9,6 @@ import XCTest
 @testable import AsyncTimeSequences
 
 final class SchedulerExtensions_Tests: XCTestCase {
-
-    private var counter = 0
     
     override func setUpWithError() throws {
         // Put setup code here. This method is called before the invocation of each test method in the class.

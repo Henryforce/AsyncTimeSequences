@@ -46,7 +46,7 @@ struct InfiniteDataIterator<T>: AsyncIteratorProtocol {
         if shouldStop {
             return nil
         }
-        await Task.sleep(seconds: 5)
+        try? await Task.sleep(seconds: 5)
         
         if index >= items.count {
             index = 0

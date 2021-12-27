@@ -109,6 +109,8 @@ where SchedulerTimeType: Strideable, SchedulerTimeType.Stride: SchedulerTimeInte
                     action()
                 }
             }
+            
+            self.now = finalDate
         }
     }
 

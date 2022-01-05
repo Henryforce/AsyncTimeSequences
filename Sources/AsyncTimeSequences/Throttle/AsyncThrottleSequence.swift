@@ -8,8 +8,6 @@
 import Foundation
 import Combine
 
-// TODO: work in progress
-
 extension AsyncSequence {
     @inlinable
     public __consuming func throttle<S: Scheduler>(
@@ -75,8 +73,7 @@ extension AsyncThrottleSequence: AsyncSequence {
         func putNext(_ element: Base.Element) {
             savedElement = element
             
-            if !started { // Always yield the first element
-                yield()
+            if !started {
                 start()
             } else {
                 scheduler.schedule(interval: interval, closure: { })
@@ -128,12 +125,12 @@ extension AsyncThrottleSequence: AsyncSequence {
         }
     }
 
+    @usableFromInline
     struct Throttle<S: Scheduler> {
-//        @usableFromInline
-        var baseIterator: Base.AsyncIterator
-//        @usableFromInline
-        let actor: ThrottleActor<S>
+        private var baseIterator: Base.AsyncIterator
+        private let actor: ThrottleActor<S>
 
+        @usableFromInline
         init(
             baseIterator: Base.AsyncIterator,
             continuation: AsyncStream<Base.Element>.Continuation,
@@ -150,7 +147,7 @@ extension AsyncThrottleSequence: AsyncSequence {
             )
         }
 
-//        @usableFromInline
+        @usableFromInline
         mutating func start() async {
             while let element = try? await baseIterator.next() {
                 await actor.putNext(element)
@@ -159,7 +156,7 @@ extension AsyncThrottleSequence: AsyncSequence {
         }
     }
 
-//    @inlinable
+    @inlinable
     public __consuming func makeAsyncIterator() -> AsyncStream<Base.Element>.Iterator {
         return AsyncStream { (continuation: AsyncStream<Base.Element>.Continuation) in
             Task {

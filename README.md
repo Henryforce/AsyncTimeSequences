@@ -28,31 +28,31 @@ All the async sequences will need an async scheduler. For convenience, there is 
 ### Timeout
 
 ```
-asyncSequence.timeout(for: 2, scheduler: .main)
+asyncSequence.timeout(for: 2, scheduler: MainAsyncScheduler.default)
 ```
 
 ### Delay
 
 ```
-asyncSequence.delay(for: 3, scheduler: .main)
+asyncSequence.delay(for: 3, scheduler: MainAsyncScheduler.default)
 ```
 
 ### Debounce
 
 ```
-asyncSequence.debounce(for: 3, scheduler: .main)
+asyncSequence.debounce(for: 3, scheduler: MainAsyncScheduler.default)
 ```
 
 ### Throttle
 
 ```
-asyncSequence.throttle(for: 3, scheduler: .main, latest: true)
+asyncSequence.throttle(for: 3, scheduler: MainAsyncScheduler.default, latest: true)
 ```
 
 ### MeasureInterval
 
 ```
-asyncSequence.measureInterval(using: .main)
+asyncSequence.measureInterval(using: MainAsyncScheduler.default)
 ```
 
 ## How to test

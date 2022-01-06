@@ -7,21 +7,21 @@
 
 import Foundation
 
-public typealias AsyncScheduleHandler = () async -> Void
+public typealias AsyncSchedulerHandler = () async -> Void
 
 public protocol AsyncScheduler: Actor {
     var now: TimeInterval { get }
-    func schedule(after: TimeInterval, handler: @escaping AsyncScheduleHandler)
+    func schedule(after: TimeInterval, handler: @escaping AsyncSchedulerHandler)
 }
 
 public actor MainAsyncScheduler: AsyncScheduler {
-    public static let base = MainAsyncScheduler()
+    public static let `default` = MainAsyncScheduler()
     
     public var now: TimeInterval {
         Date().timeIntervalSince1970
     }
     
-    public func schedule(after: TimeInterval, handler: @escaping AsyncScheduleHandler) {
+    public func schedule(after: TimeInterval, handler: @escaping AsyncSchedulerHandler) {
         Task {
             try? await Task.sleep(milliseconds: UInt64(after * 1000))
             await handler()

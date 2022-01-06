@@ -14,14 +14,8 @@ public protocol AsyncScheduler: Actor {
     func schedule(after: TimeInterval, handler: @escaping AsyncScheduleHandler)
 }
 
-extension AsyncScheduler {
-    public static var main: AsyncScheduler {
-        MainAsyncScheduler.main
-    }
-}
-
 public actor MainAsyncScheduler: AsyncScheduler {
-    static let main = MainAsyncScheduler()
+    public static let base = MainAsyncScheduler()
     
     public var now: TimeInterval {
         Date().timeIntervalSince1970

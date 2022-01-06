@@ -60,9 +60,6 @@ extension AsyncMeasureIntervalSequence: AsyncSequence {
             }
                 
             self.lastTime = now
-            
-            // Just to inform the scheduler there has been a time event processed..
-//            scheduler.schedule(interval: 0, closure: { })
         }
 
         func finish() {
@@ -74,12 +71,12 @@ extension AsyncMeasureIntervalSequence: AsyncSequence {
         }
     }
 
+    @usableFromInline
     struct MeasureInterval {
-//        @usableFromInline
-        var baseIterator: Base.AsyncIterator
-//        @usableFromInline
-        let actor: MeasureIntervalActor
+        private var baseIterator: Base.AsyncIterator
+        private let actor: MeasureIntervalActor
 
+        @usableFromInline
         init(
             baseIterator: Base.AsyncIterator,
             continuation: AsyncStream<TimeInterval>.Continuation,
@@ -92,7 +89,7 @@ extension AsyncMeasureIntervalSequence: AsyncSequence {
             )
         }
 
-//        @usableFromInline
+        @usableFromInline
         mutating func start() async {
             while (try? await baseIterator.next() != nil) ?? false {
                 await actor.putNext()
@@ -101,7 +98,7 @@ extension AsyncMeasureIntervalSequence: AsyncSequence {
         }
     }
 
-//    @inlinable
+    @inlinable
     public __consuming func makeAsyncIterator() -> AsyncStream<TimeInterval>.Iterator {
         return AsyncStream { (continuation: AsyncStream<TimeInterval>.Continuation) in
             Task {

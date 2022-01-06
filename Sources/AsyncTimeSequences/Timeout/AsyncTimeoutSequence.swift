@@ -40,6 +40,7 @@ public enum AsyncTimeSequenceError: Error {
     case timeout
 }
 
+// TODO: handle continuation.finish being called multiple times
 extension AsyncTimeoutSequence: AsyncSequence {
     
     public typealias Element = Base.Element
@@ -52,7 +53,6 @@ extension AsyncTimeoutSequence: AsyncSequence {
         let scheduler: AsyncScheduler
 
         var counter: UInt = .zero
-//        var task: Task<Void, Never>?
 
         init(
             continuation: AsyncThrowingStream<Base.Element, Error>.Continuation,
@@ -69,13 +69,11 @@ extension AsyncTimeoutSequence: AsyncSequence {
         }
 
         func putNext(_ element: Base.Element) async {
-//            task?.cancel()
             yield(element)
             await startTimeout()
         }
 
         func finish() {
-//            task?.cancel()
             continuation.finish(throwing: nil)
         }
 
@@ -89,10 +87,6 @@ extension AsyncTimeoutSequence: AsyncSequence {
         }
         
         private func startTimeout() async {
-//            task = Task {
-//                await scheduler.sleep(interval)
-//                yield(error: AsyncTimeSequenceError.timeout)
-//            }
             let localCounter = updateCounter()
             await scheduler.schedule(after: interval, handler: { [weak self] in
                 await self?.yield(error: AsyncTimeSequenceError.timeout, savedCounter: localCounter)
@@ -108,12 +102,12 @@ extension AsyncTimeoutSequence: AsyncSequence {
         }
     }
 
+    @usableFromInline
     struct Timeout{
-//        @usableFromInline
-        var baseIterator: Base.AsyncIterator
-//        @usableFromInline
-        let actor: TimeoutActor
+        private var baseIterator: Base.AsyncIterator
+        private let actor: TimeoutActor
 
+        @usableFromInline
         init(
             baseIterator: Base.AsyncIterator,
             continuation: AsyncThrowingStream<Base.Element, Error>.Continuation,
@@ -128,7 +122,7 @@ extension AsyncTimeoutSequence: AsyncSequence {
             )
         }
 
-//        @usableFromInline
+        @usableFromInline
         mutating func start() async {
             await actor.start()
             while let element = try? await baseIterator.next() {
@@ -138,7 +132,7 @@ extension AsyncTimeoutSequence: AsyncSequence {
         }
     }
 
-//    @inlinable
+    @inlinable
     public __consuming func makeAsyncIterator() -> AsyncThrowingStream<Base.Element, Error>.Iterator {
         return AsyncThrowingStream { (continuation: AsyncThrowingStream<Base.Element, Error>.Continuation) in
             Task {

@@ -51,7 +51,7 @@ extension AsyncDelaySequence: AsyncSequence {
         var dequeue = Dequeue<UInt>()
         var ids = [UInt: Base.Element]()
         var nextID: UInt = 0
-        var shouldFinish = false
+        var finishedContinuation: CheckedContinuation<Void, Never>?
 
         init(
             continuation: AsyncStream<Base.Element>.Continuation,
@@ -73,13 +73,15 @@ extension AsyncDelaySequence: AsyncSequence {
             })
         }
 
-        func finish() {
-            // If there are still elements waiting to be yielded, flag the finish variable
-            shouldFinish = true
-    
+        func finish() async {
             // If there are no elements waiting to be yielded, finish now
             if dequeue.isEmpty {
                 continuation.finish()
+            } else {
+                // Keep the owner of the actor waiting for the end to avoid having this actor released from memory
+                await withCheckedContinuation({ (continuation: CheckedContinuation<Void, Never>) in
+                    finishedContinuation = continuation
+                })
             }
         }
         
@@ -96,19 +98,21 @@ extension AsyncDelaySequence: AsyncSequence {
         private func yield(_ element: Base.Element) {
             continuation.yield(element)
             
-            // The flag to finish was set while waiting, finish now
-            if shouldFinish, dequeue.isEmpty {
+            // If finished has been triggered and there are no more items in the queue, finish now
+            if let finishedContinuation = finishedContinuation, dequeue.isEmpty {
                 continuation.finish()
+                finishedContinuation.resume()
+                self.finishedContinuation = nil
             }
         }
     }
 
+    @usableFromInline
     struct Delay {
-//        @usableFromInline
-        var baseIterator: Base.AsyncIterator
-//        @usableFromInline
-        let actor: DelayActor
+        private var baseIterator: Base.AsyncIterator
+        private let actor: DelayActor
 
+        @usableFromInline
         init(
             baseIterator: Base.AsyncIterator,
             continuation: AsyncStream<Base.Element>.Continuation,
@@ -123,7 +127,7 @@ extension AsyncDelaySequence: AsyncSequence {
             )
         }
 
-//        @usableFromInline
+        @usableFromInline
         mutating func start() async {
             while let element = try? await baseIterator.next() {
                 await actor.putNext(element)
@@ -132,7 +136,7 @@ extension AsyncDelaySequence: AsyncSequence {
         }
     }
 
-//    @inlinable
+    @inlinable
     public __consuming func makeAsyncIterator() -> AsyncStream<Base.Element>.Iterator {
         return AsyncStream { (continuation: AsyncStream<Base.Element>.Continuation) in
             Task {

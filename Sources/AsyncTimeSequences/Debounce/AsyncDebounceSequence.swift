@@ -49,7 +49,7 @@ extension AsyncDebounceSequence: AsyncSequence {
 
         var counter: UInt = .zero
         var scheduledCount: UInt = .zero
-        var shouldFinish = false
+        var finishedContinuation: CheckedContinuation<Void, Never>?
 
         init(
             continuation: AsyncStream<Base.Element>.Continuation,
@@ -69,12 +69,14 @@ extension AsyncDebounceSequence: AsyncSequence {
             })
         }
 
-        func finish() {
-            // If there are still elements waiting to be yielded, flag the finish variable
-            shouldFinish = true
-    
+        func finish() async {
             if scheduledCount == .zero {
                 continuation.finish()
+            } else {
+                // Keep the owner of the actor waiting for the end to avoid having this actor released from memory
+                await withCheckedContinuation({ (continuation: CheckedContinuation<Void, Never>) in
+                    finishedContinuation = continuation
+                })
             }
         }
         
@@ -93,9 +95,11 @@ extension AsyncDebounceSequence: AsyncSequence {
             
             continuation.yield(element)
             
-            // The flag to finish was set while waiting, finish now
-            if shouldFinish {
+            // If finished has been triggered and there are no more items in the queue, finish now
+            if let finishedContinuation = finishedContinuation {
                 continuation.finish()
+                finishedContinuation.resume()
+                self.finishedContinuation = nil
             }
         }
     }

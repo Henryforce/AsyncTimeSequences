@@ -56,7 +56,7 @@ extension AsyncThrottleSequence: AsyncSequence {
         var savedElement: Base.Element?
         var readyToSendFirst = false
         var started = false
-        var shouldFinish = false
+        var finishedContinuation: CheckedContinuation<Void, Never>?
 
         init(
             continuation: AsyncStream<Base.Element>.Continuation,
@@ -83,10 +83,14 @@ extension AsyncThrottleSequence: AsyncSequence {
             }
         }
 
-        func finish() {
-            shouldFinish = true
+        func finish() async {
             if savedElement == nil, !started {
                 continuation.finish()
+            } else {
+                // Keep the owner of the actor waiting for the end to avoid having this actor released from memory
+                await withCheckedContinuation({ (continuation: CheckedContinuation<Void, Never>) in
+                    finishedContinuation = continuation
+                })
             }
         }
         
@@ -102,13 +106,16 @@ extension AsyncThrottleSequence: AsyncSequence {
                 savedElement = nil
             }
             
-            if shouldFinish {
+            // If finished has been triggered and there are no more items in the queue, finish now
+            if let finishedContinuation = finishedContinuation {
                 continuation.finish()
+                finishedContinuation.resume()
+                self.finishedContinuation = nil
             }
         }
         
         private func runTimer() async {
-            guard !shouldFinish else { return }
+            guard finishedContinuation == nil else { return }
             readyToSendFirst = true
             await scheduler.schedule(after: interval) { [weak self] in
                 await self?.closureFromTimer()

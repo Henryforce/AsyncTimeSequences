@@ -6,13 +6,14 @@
 //
 
 import Foundation
+import AsyncTimeSequences
+import AsyncTimeSequencesDataStructures
 
-// TODO: Move to test sub-package
 public actor TestAsyncScheduler: AsyncScheduler {
     
     struct QueueItem {
         let interval: TimeInterval
-        let handler: AsyncScheduleHandler
+        let handler: AsyncSchedulerHandler
     }
     
     private let queue = Dequeue<QueueItem>()
@@ -21,7 +22,9 @@ public actor TestAsyncScheduler: AsyncScheduler {
     
     public var now: TimeInterval = Date().timeIntervalSince1970
     
-    public func schedule(after interval: TimeInterval, handler: @escaping AsyncScheduleHandler) {
+    public init() { }
+    
+    public func schedule(after interval: TimeInterval, handler: @escaping AsyncSchedulerHandler) {
         let item = QueueItem(interval: interval + now, handler: handler)
         queue.enqueue(item)
         

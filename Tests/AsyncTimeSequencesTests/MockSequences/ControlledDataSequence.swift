@@ -37,7 +37,7 @@ final class ControlledDataIterator<T>: AsyncIteratorProtocol {
     }
 }
 
-// TODO: analyze if we should return await upon request of next value
+// TODO: move this to the support package
 actor ControlledDataActor<T> {
     let items: [T]
     var allowedItemsToBeSentCount = Int.zero

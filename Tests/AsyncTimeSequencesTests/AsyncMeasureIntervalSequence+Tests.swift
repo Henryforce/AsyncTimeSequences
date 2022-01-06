@@ -10,6 +10,7 @@ import Foundation
 import XCTest
 import CombineSchedulers
 @testable import AsyncTimeSequences
+import AsyncTimeSequencesSupport
 
 final class AsyncMeasureIntervalSequence_Tests: XCTestCase {
     

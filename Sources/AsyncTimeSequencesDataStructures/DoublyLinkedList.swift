@@ -10,14 +10,14 @@ import Foundation
 final class DoublyLinkedList<T> {
     weak var previous: DoublyLinkedList<T>?
     var next: DoublyLinkedList<T>?
-    var currentValue: T!
-    
+    var value: T!
+
     init(
         value: T? = nil,
         previous: DoublyLinkedList<T>? = nil,
         next: DoublyLinkedList<T>? = nil
     ) {
-        self.currentValue = value
+        self.value = value
         self.previous = previous
         self.next = next
     }
@@ -29,7 +29,7 @@ extension DoublyLinkedList {
         var array = [T]()
         var next: DoublyLinkedList<T>? = self.next
         while(next !== item) {
-            guard let value = next?.currentValue else { break }
+            guard let value = next?.value else { break }
             array.append(value)
             next = next?.next
         }

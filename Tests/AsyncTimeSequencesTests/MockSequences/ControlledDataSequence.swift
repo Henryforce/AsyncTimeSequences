@@ -57,6 +57,9 @@ actor ControlledDataActor<T> {
     func next() async -> T? {
         if allowedItemsToBeSentCount > .zero {
             return nextElement()
+        } else if let waitContinuation = waitContinuation {
+            waitContinuation.resume(returning: ())
+            self.waitContinuation = nil
         }
         return await withCheckedContinuation({ (continuation: CheckedContinuation<T?, Never>) in
             savedNextContinuation = continuation
@@ -87,10 +90,6 @@ actor ControlledDataActor<T> {
         defer {
             index += 1
             allowedItemsToBeSentCount -= 1
-            if allowedItemsToBeSentCount == .zero, let waitContinuation = waitContinuation {
-                waitContinuation.resume(returning: ())
-                self.waitContinuation = nil
-            }
         }
         let element = items.element(at: index)
         return element

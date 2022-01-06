@@ -8,18 +8,18 @@
 import Foundation
 import Combine
 
-public struct AsyncDebounceSequence<Base: AsyncSequence, S: Scheduler> {
+public struct AsyncDebounceSequence<Base: AsyncSequence> {
     @usableFromInline
     let base: Base
 
     @usableFromInline
-    let interval: S.SchedulerTimeType.Stride
+    let interval: TimeInterval
     
     @usableFromInline
-    let scheduler: S
+    let scheduler: AsyncScheduler
 
     @usableFromInline
-    init(_ base: Base, interval: S.SchedulerTimeType.Stride, scheduler: S) {
+    init(_ base: Base, interval: TimeInterval, scheduler: AsyncScheduler) {
         self.base = base
         self.interval = interval
         self.scheduler = scheduler
@@ -28,10 +28,10 @@ public struct AsyncDebounceSequence<Base: AsyncSequence, S: Scheduler> {
 
 extension AsyncSequence {
     @inlinable
-    public __consuming func debounce<S: Scheduler>(
-        for interval: S.SchedulerTimeType.Stride,
-        scheduler: S
-    ) -> AsyncDebounceSequence<Self, S> {
+    public __consuming func debounce(
+        for interval: TimeInterval,
+        scheduler: AsyncScheduler
+    ) -> AsyncDebounceSequence<Self> {
         return AsyncDebounceSequence(self, interval: interval, scheduler: scheduler)
     }
 }
@@ -42,45 +42,55 @@ extension AsyncDebounceSequence: AsyncSequence {
     /// The type of iterator that produces elements of the sequence.
     public typealias AsyncIterator = AsyncStream<Base.Element>.Iterator
 
-    actor DebounceActor<S: Scheduler> {
+    actor DebounceActor {
         let continuation: AsyncStream<Base.Element>.Continuation
-        let interval: S.SchedulerTimeType.Stride
-        let scheduler: S
+        let interval: TimeInterval
+        let scheduler: AsyncScheduler
 
-        var task: Task<Void, Never>?
+        var counter: UInt = .zero
+        var scheduledCount: UInt = .zero
         var shouldFinish = false
 
         init(
             continuation: AsyncStream<Base.Element>.Continuation,
-            interval: S.SchedulerTimeType.Stride,
-            scheduler: S
+            interval: TimeInterval,
+            scheduler: AsyncScheduler
         ) {
             self.continuation = continuation
             self.interval = interval
             self.scheduler = scheduler
         }
 
-        func putNext(_ element: Base.Element) {
-            task?.cancel() // Only the last task will yield
-            
-            task = Task {
-                await scheduler.sleep(interval)
-                guard !Task.isCancelled else { return }
-                yield(element)
-            }
+        func putNext(_ element: Base.Element) async {
+            let localCounter = updateCounter()
+            scheduledCount += 1
+            await scheduler.schedule(after: interval, handler: { [weak self] in
+                await self?.yield(element, savedCounter: localCounter)
+            })
         }
 
         func finish() {
             // If there are still elements waiting to be yielded, flag the finish variable
             shouldFinish = true
     
-            // If there are no elements waiting to be yielded, finish now
-            if task?.isCancelled ?? true {
+            if scheduledCount == .zero {
                 continuation.finish()
             }
         }
+        
+        private func updateCounter() -> UInt {
+            counter += 1
+            if counter == .max {
+                counter = .zero
+            }
+            return counter
+        }
 
-        private func yield(_ element: Base.Element) {
+        private func yield(_ element: Base.Element, savedCounter: UInt) {
+            scheduledCount -= 1
+            
+            guard savedCounter == counter else { return }
+            
             continuation.yield(element)
             
             // The flag to finish was set while waiting, finish now
@@ -90,17 +100,17 @@ extension AsyncDebounceSequence: AsyncSequence {
         }
     }
 
-    struct Debounce<S: Scheduler> {
-//        @usableFromInline
-        var baseIterator: Base.AsyncIterator
-//        @usableFromInline
-        let actor: DebounceActor<S>
+    @usableFromInline
+    struct Debounce {
+        private var baseIterator: Base.AsyncIterator
+        private let actor: DebounceActor
 
+        @usableFromInline
         init(
             baseIterator: Base.AsyncIterator,
             continuation: AsyncStream<Base.Element>.Continuation,
-            interval: S.SchedulerTimeType.Stride,
-            scheduler: S
+            interval: TimeInterval,
+            scheduler: AsyncScheduler
         ) {
             self.baseIterator = baseIterator
             self.actor = DebounceActor(
@@ -110,7 +120,7 @@ extension AsyncDebounceSequence: AsyncSequence {
             )
         }
 
-//        @usableFromInline
+        @usableFromInline
         mutating func start() async {
             while let element = try? await baseIterator.next() {
                 await actor.putNext(element)
@@ -119,7 +129,7 @@ extension AsyncDebounceSequence: AsyncSequence {
         }
     }
 
-//    @inlinable
+    @inlinable
     public __consuming func makeAsyncIterator() -> AsyncStream<Base.Element>.Iterator {
         return AsyncStream { (continuation: AsyncStream<Base.Element>.Continuation) in
             Task {

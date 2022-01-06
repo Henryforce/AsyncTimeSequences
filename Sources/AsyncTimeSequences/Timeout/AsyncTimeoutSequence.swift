@@ -8,18 +8,18 @@
 import Foundation
 import Combine
 
-public struct AsyncTimeoutSequence<Base: AsyncSequence, S: Scheduler> {
+public struct AsyncTimeoutSequence<Base: AsyncSequence> {
     @usableFromInline
     let base: Base
 
     @usableFromInline
-    let interval: S.SchedulerTimeType.Stride
+    let interval: TimeInterval
     
     @usableFromInline
-    let scheduler: S
+    let scheduler: AsyncScheduler
 
     @usableFromInline
-    init(_ base: Base, interval: S.SchedulerTimeType.Stride, scheduler: S) {
+    init(_ base: Base, interval: TimeInterval, scheduler: AsyncScheduler) {
         self.base = base
         self.interval = interval
         self.scheduler = scheduler
@@ -28,10 +28,10 @@ public struct AsyncTimeoutSequence<Base: AsyncSequence, S: Scheduler> {
 
 extension AsyncSequence {
     @inlinable
-    public __consuming func timeout<S: Scheduler>(
-        for interval: S.SchedulerTimeType.Stride,
-        scheduler: S
-    ) -> AsyncTimeoutSequence<Self, S> {
+    public __consuming func timeout(
+        for interval: TimeInterval,
+        scheduler: AsyncScheduler
+    ) -> AsyncTimeoutSequence<Self> {
         return AsyncTimeoutSequence(self, interval: interval, scheduler: scheduler)
     }
 }
@@ -46,35 +46,36 @@ extension AsyncTimeoutSequence: AsyncSequence {
     /// The type of iterator that produces elements of the sequence.
     public typealias AsyncIterator = AsyncThrowingStream<Base.Element, Error>.Iterator
 
-    actor TimeoutActor<S: Scheduler> {
+    actor TimeoutActor {
         let continuation: AsyncThrowingStream<Base.Element, Error>.Continuation
-        let interval: S.SchedulerTimeType.Stride
-        let scheduler: S
+        let interval: TimeInterval
+        let scheduler: AsyncScheduler
 
-        var task: Task<Void, Never>?
+        var counter: UInt = .zero
+//        var task: Task<Void, Never>?
 
         init(
             continuation: AsyncThrowingStream<Base.Element, Error>.Continuation,
-            interval: S.SchedulerTimeType.Stride,
-            scheduler: S
+            interval: TimeInterval,
+            scheduler: AsyncScheduler
         ) {
             self.continuation = continuation
             self.interval = interval
             self.scheduler = scheduler
         }
         
-        func start() {
-            startTask()
+        func start() async {
+            await startTimeout()
         }
 
-        func putNext(_ element: Base.Element) {
-            task?.cancel()
+        func putNext(_ element: Base.Element) async {
+//            task?.cancel()
             yield(element)
-            startTask()
+            await startTimeout()
         }
 
         func finish() {
-            task?.cancel()
+//            task?.cancel()
             continuation.finish(throwing: nil)
         }
 
@@ -82,29 +83,42 @@ extension AsyncTimeoutSequence: AsyncSequence {
             continuation.yield(element)
         }
         
-        private func yield(error: Error) {
+        private func yield(error: Error, savedCounter: UInt) {
+            guard counter == savedCounter else { return }
             continuation.finish(throwing: error)
         }
         
-        private func startTask() {
-            task = Task {
-                await scheduler.sleep(interval)
-                yield(error: AsyncTimeSequenceError.timeout)
+        private func startTimeout() async {
+//            task = Task {
+//                await scheduler.sleep(interval)
+//                yield(error: AsyncTimeSequenceError.timeout)
+//            }
+            let localCounter = updateCounter()
+            await scheduler.schedule(after: interval, handler: { [weak self] in
+                await self?.yield(error: AsyncTimeSequenceError.timeout, savedCounter: localCounter)
+            })
+        }
+        
+        private func updateCounter() -> UInt {
+            counter += 1
+            if counter == .max {
+                counter = .zero
             }
+            return counter
         }
     }
 
-    struct Timeout<S: Scheduler> {
+    struct Timeout{
 //        @usableFromInline
         var baseIterator: Base.AsyncIterator
 //        @usableFromInline
-        let actor: TimeoutActor<S>
+        let actor: TimeoutActor
 
         init(
             baseIterator: Base.AsyncIterator,
             continuation: AsyncThrowingStream<Base.Element, Error>.Continuation,
-            interval: S.SchedulerTimeType.Stride,
-            scheduler: S
+            interval: TimeInterval,
+            scheduler: AsyncScheduler
         ) {
             self.baseIterator = baseIterator
             self.actor = TimeoutActor(

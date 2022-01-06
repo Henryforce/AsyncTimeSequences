@@ -8,15 +8,15 @@
 import Foundation
 import Combine
 
-public struct AsyncMeasureIntervalSequence<Base: AsyncSequence, S: Scheduler> {
+public struct AsyncMeasureIntervalSequence<Base: AsyncSequence> {
     @usableFromInline
     let base: Base
     
     @usableFromInline
-    let scheduler: S
+    let scheduler: AsyncScheduler
 
     @usableFromInline
-    init(_ base: Base, using scheduler: S) {
+    init(_ base: Base, using scheduler: AsyncScheduler) {
         self.base = base
         self.scheduler = scheduler
     }
@@ -24,35 +24,35 @@ public struct AsyncMeasureIntervalSequence<Base: AsyncSequence, S: Scheduler> {
 
 extension AsyncSequence {
     @inlinable
-    public __consuming func measureInterval<S: Scheduler>(
-        using scheduler: S
-    ) -> AsyncMeasureIntervalSequence<Self, S> {
+    public __consuming func measureInterval(
+        using scheduler: AsyncScheduler
+    ) -> AsyncMeasureIntervalSequence<Self> {
         return AsyncMeasureIntervalSequence(self, using: scheduler)
     }
 }
 
 extension AsyncMeasureIntervalSequence: AsyncSequence {
     
-    public typealias Element = S.SchedulerTimeType.Stride
+    public typealias Element = TimeInterval
     /// The type of iterator that produces elements of the sequence.
-    public typealias AsyncIterator = AsyncStream<S.SchedulerTimeType.Stride>.Iterator
+    public typealias AsyncIterator = AsyncStream<TimeInterval>.Iterator
 
-    actor MeasureIntervalActor<S: Scheduler> {
-        let continuation: AsyncStream<S.SchedulerTimeType.Stride>.Continuation
-        let scheduler: S
+    actor MeasureIntervalActor {
+        let continuation: AsyncStream<TimeInterval>.Continuation
+        let scheduler: AsyncScheduler
 
-        var lastTime: S.SchedulerTimeType?
+        var lastTime: TimeInterval?
 
         init(
-            continuation: AsyncStream<S.SchedulerTimeType.Stride>.Continuation,
-            scheduler: S
+            continuation: AsyncStream<TimeInterval>.Continuation,
+            scheduler: AsyncScheduler
         ) {
             self.continuation = continuation
             self.scheduler = scheduler
         }
 
-        func putNext() {
-            let now = scheduler.now
+        func putNext() async {
+            let now = await scheduler.now
             
             if let lastTime = lastTime {
                 let distance = lastTime.distance(to: now)
@@ -62,28 +62,28 @@ extension AsyncMeasureIntervalSequence: AsyncSequence {
             self.lastTime = now
             
             // Just to inform the scheduler there has been a time event processed..
-            scheduler.schedule(interval: 0, closure: { })
+//            scheduler.schedule(interval: 0, closure: { })
         }
 
         func finish() {
             continuation.finish()
         }
 
-        private func yield(_ element: S.SchedulerTimeType.Stride) {
+        private func yield(_ element: TimeInterval) {
             continuation.yield(element)
         }
     }
 
-    struct MeasureInterval<S: Scheduler> {
+    struct MeasureInterval {
 //        @usableFromInline
         var baseIterator: Base.AsyncIterator
 //        @usableFromInline
-        let actor: MeasureIntervalActor<S>
+        let actor: MeasureIntervalActor
 
         init(
             baseIterator: Base.AsyncIterator,
-            continuation: AsyncStream<S.SchedulerTimeType.Stride>.Continuation,
-            scheduler: S
+            continuation: AsyncStream<TimeInterval>.Continuation,
+            scheduler: AsyncScheduler
         ) {
             self.baseIterator = baseIterator
             self.actor = MeasureIntervalActor(
@@ -102,8 +102,8 @@ extension AsyncMeasureIntervalSequence: AsyncSequence {
     }
 
 //    @inlinable
-    public __consuming func makeAsyncIterator() -> AsyncStream<S.SchedulerTimeType.Stride>.Iterator {
-        return AsyncStream { (continuation: AsyncStream<S.SchedulerTimeType.Stride>.Continuation) in
+    public __consuming func makeAsyncIterator() -> AsyncStream<TimeInterval>.Iterator {
+        return AsyncStream { (continuation: AsyncStream<TimeInterval>.Continuation) in
             Task {
                 var measureInterval = MeasureInterval(
                     baseIterator: base.makeAsyncIterator(),

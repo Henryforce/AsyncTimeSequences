@@ -23,26 +23,28 @@ final class AsyncDebounceSequence_Tests: XCTestCase {
     
     func testAsyncDebounceSequence() async {
         // Given
-        let scheduler = DispatchQueue.asyncTest
+        let scheduler = TestAsyncScheduler()
         let items = [1,5,10,15,20]
-        let baseDelay = 5
-        var expectedItems = [Int]()
+        let expectedItems = [20]
+        let baseDelay = 5.0
+        var receivedItems = [Int]()
         
         // When
-        var iterator = SampleDataSequence(items: items)
-            .debounce(for: .seconds(baseDelay), scheduler: scheduler)
+        let sequence = ControlledDataSequence(items: items)
+        var iterator = sequence
+            .debounce(for: baseDelay, scheduler: scheduler)
             .makeAsyncIterator()
 
         // If we don't wait for jobs to get scheduled, advancing the scheduler does virtually nothing...
-        await scheduler.waitForScheduledJobs(count: items.count)
-        scheduler.advance(by: .seconds(baseDelay * items.count))
+        await sequence.iterator.waitForItemsToBeSent(items.count)
+        await scheduler.advance(by: baseDelay)
         
-        while let value = await iterator.next() {
-            expectedItems.append(value)
+        while receivedItems.count < expectedItems.count, let value = await iterator.next() {
+            receivedItems.append(value)
         }
         
         // Then
-        XCTAssertEqual(expectedItems, [20])
+        XCTAssertEqual(receivedItems, expectedItems)
     }
 
 }

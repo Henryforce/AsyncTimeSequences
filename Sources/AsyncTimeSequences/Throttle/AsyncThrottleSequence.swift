@@ -10,30 +10,30 @@ import Combine
 
 extension AsyncSequence {
     @inlinable
-    public __consuming func throttle<S: Scheduler>(
-        for interval: S.SchedulerTimeType.Stride,
-        scheduler: S,
+    public __consuming func throttle(
+        for interval: TimeInterval,
+        scheduler: AsyncScheduler,
         latest: Bool
-    ) -> AsyncThrottleSequence<Self, S> {
+    ) -> AsyncThrottleSequence<Self> {
         return AsyncThrottleSequence(self, interval: interval, scheduler: scheduler, latest: latest)
     }
 }
 
-public struct AsyncThrottleSequence<Base: AsyncSequence, S: Scheduler> {
+public struct AsyncThrottleSequence<Base: AsyncSequence> {
     @usableFromInline
     let base: Base
 
     @usableFromInline
-    let interval: S.SchedulerTimeType.Stride
+    let interval: TimeInterval
     
     @usableFromInline
-    let scheduler: S
+    let scheduler: AsyncScheduler
 
     @usableFromInline
     let latest: Bool
 
     @usableFromInline
-    init(_ base: Base, interval: S.SchedulerTimeType.Stride, scheduler: S, latest: Bool) {
+    init(_ base: Base, interval: TimeInterval, scheduler: AsyncScheduler, latest: Bool) {
         self.base = base
         self.interval = interval
         self.scheduler = scheduler
@@ -47,10 +47,10 @@ extension AsyncThrottleSequence: AsyncSequence {
     /// The type of iterator that produces elements of the sequence.
     public typealias AsyncIterator = AsyncStream<Base.Element>.Iterator
 
-    actor ThrottleActor<S: Scheduler> {
+    actor ThrottleActor {
         let continuation: AsyncStream<Base.Element>.Continuation
-        let interval: S.SchedulerTimeType.Stride
-        let scheduler: S
+        let interval: TimeInterval
+        let scheduler: AsyncScheduler
         let latest: Bool
         
         var savedElement: Base.Element?
@@ -60,8 +60,8 @@ extension AsyncThrottleSequence: AsyncSequence {
 
         init(
             continuation: AsyncStream<Base.Element>.Continuation,
-            interval: S.SchedulerTimeType.Stride,
-            scheduler: S,
+            interval: TimeInterval,
+            scheduler: AsyncScheduler,
             latest: Bool
         ) {
             self.continuation = continuation
@@ -70,13 +70,11 @@ extension AsyncThrottleSequence: AsyncSequence {
             self.latest = latest
         }
 
-        func putNext(_ element: Base.Element) {
+        func putNext(_ element: Base.Element) async {
             savedElement = element
             
             if !started {
-                start()
-            } else {
-                scheduler.schedule(interval: interval, closure: { })
+                await start()
             }
             
             if !latest, readyToSendFirst {
@@ -92,10 +90,10 @@ extension AsyncThrottleSequence: AsyncSequence {
             }
         }
         
-        func start() {
+        func start() async {
             guard !started else { return }
             started = true
-            runTimer()
+            await runTimer()
         }
         
         private func yield() {
@@ -109,33 +107,33 @@ extension AsyncThrottleSequence: AsyncSequence {
             }
         }
         
-        private func runTimer() {
+        private func runTimer() async {
             guard !shouldFinish else { return }
             readyToSendFirst = true
-            scheduler.schedule(interval: interval, closure: { [weak self] in
+            await scheduler.schedule(after: interval) { [weak self] in
                 await self?.closureFromTimer()
-            })
+            }
         }
         
-        private func closureFromTimer() {
+        private func closureFromTimer() async {
             if latest {
                 yield()
             }
-            runTimer()
+            await runTimer()
         }
     }
 
     @usableFromInline
-    struct Throttle<S: Scheduler> {
+    struct Throttle {
         private var baseIterator: Base.AsyncIterator
-        private let actor: ThrottleActor<S>
+        private let actor: ThrottleActor
 
         @usableFromInline
         init(
             baseIterator: Base.AsyncIterator,
             continuation: AsyncStream<Base.Element>.Continuation,
-            interval: S.SchedulerTimeType.Stride,
-            scheduler: S,
+            interval: TimeInterval,
+            scheduler: AsyncScheduler,
             latest: Bool
         ) {
             self.baseIterator = baseIterator

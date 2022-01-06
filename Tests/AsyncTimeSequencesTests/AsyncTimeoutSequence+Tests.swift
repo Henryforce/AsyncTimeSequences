@@ -21,22 +21,23 @@ final class AsyncDelaySequenceTests: XCTestCase {
     
     func testAsyncTimeoutSequenceThrowsErrorOnTimeout() async {
         // Given
-        let scheduler = DispatchQueue.asyncTest
+        let scheduler = TestAsyncScheduler()
         let items = [1,5,10,15,20]
-        let baseDelay = 5
+        let baseDelay = 5.0
         var expectedItems = [Int]()
         
         // When
-        var sequence = InfiniteDataSequence(items: items, delay: 5)
+        let sequence = ControlledDataSequence(items: items)
         var iterator = sequence
-            .timeout(for: .seconds(baseDelay), scheduler: scheduler)
+            .timeout(for: baseDelay, scheduler: scheduler)
             .makeAsyncIterator()
 
         // If we don't wait for jobs to get scheduled, advancing the scheduler does virtually nothing...
-        await scheduler.waitForScheduledJobs(count: 1)
-        scheduler.advance(by: .seconds(baseDelay))
+        await sequence.iterator.waitForItemsToBeSent(items.count)
+        await scheduler.advance(by: baseDelay)
         
         do {
+            // It will throw an error as the sequence finished sending items but it will never send a nil. Thus, triggering a timeout
             while let value = try await iterator.next() {
                 expectedItems.append(value)
             }
@@ -49,25 +50,22 @@ final class AsyncDelaySequenceTests: XCTestCase {
                 return
             }
         }
-        
-        sequence.stop()
     }
     
     func testAsyncTimeoutSequenceDoesNotThrowErrorIfElementsDontWaitNTime() async {
         // Given
-        let scheduler = DispatchQueue.asyncTest
+        let scheduler = TestAsyncScheduler()
         let items = [1,5,10,15,20]
-        let baseDelay = 5
+        let baseDelay = 5.0
         var expectedItems = [Int]()
-        
+
         // When
         var iterator = SampleDataSequence(items: items)
-            .timeout(for: .seconds(baseDelay), scheduler: scheduler)
+            .timeout(for: baseDelay, scheduler: scheduler)
             .makeAsyncIterator()
-
-        // If we don't wait for jobs to get scheduled, advancing the scheduler does virtually nothing...
-        await scheduler.waitForScheduledJobs(count: 1)
         
+        await scheduler.waitForScheduledJobs(count: 1) // Make sure that the timeout is scheduled
+
         do {
             while let value = try await iterator.next() {
                 expectedItems.append(value)
@@ -75,7 +73,7 @@ final class AsyncDelaySequenceTests: XCTestCase {
         } catch {
             XCTFail("An error was not expected")
         }
-        
+
         // Then
         XCTAssertEqual(expectedItems, [1, 5, 10, 15, 20])
     }

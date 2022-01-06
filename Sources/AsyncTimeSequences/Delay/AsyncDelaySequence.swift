@@ -8,18 +8,18 @@
 import Foundation
 import Combine
 
-public struct AsyncDelaySequence<Base: AsyncSequence, S: Scheduler> {
+public struct AsyncDelaySequence<Base: AsyncSequence> {
     @usableFromInline
     let base: Base
 
     @usableFromInline
-    let interval: S.SchedulerTimeType.Stride
+    let interval: TimeInterval
     
     @usableFromInline
-    let scheduler: S
+    let scheduler: AsyncScheduler
 
     @usableFromInline
-    init(_ base: Base, interval: S.SchedulerTimeType.Stride, scheduler: S) {
+    init(_ base: Base, interval: TimeInterval, scheduler: AsyncScheduler) {
         self.base = base
         self.interval = interval
         self.scheduler = scheduler
@@ -28,10 +28,10 @@ public struct AsyncDelaySequence<Base: AsyncSequence, S: Scheduler> {
 
 extension AsyncSequence {
     @inlinable
-    public __consuming func delay<S: Scheduler>(
-        for interval: S.SchedulerTimeType.Stride,
-        scheduler: S
-    ) -> AsyncDelaySequence<Self, S> {
+    public __consuming func delay(
+        for interval: TimeInterval,
+        scheduler: AsyncScheduler
+    ) -> AsyncDelaySequence<Self> {
         return AsyncDelaySequence(self, interval: interval, scheduler: scheduler)
     }
 }
@@ -42,42 +42,34 @@ extension AsyncDelaySequence: AsyncSequence {
     /// The type of iterator that produces elements of the sequence.
     public typealias AsyncIterator = AsyncStream<Base.Element>.Iterator
 
-    actor DelayActor<S: Scheduler> {
+    actor DelayActor {
         let continuation: AsyncStream<Base.Element>.Continuation
-        let interval: S.SchedulerTimeType.Stride
-        let scheduler: S
+        let interval: TimeInterval
+        let scheduler: AsyncScheduler
         
-        var dequeue = Dequeue<UInt64>()
-        var ids = [UInt64: Base.Element]()
-        var nextID: UInt64 = 0
+        var dequeue = Dequeue<UInt>()
+        var ids = [UInt: Base.Element]()
+        var nextID: UInt = 0
         var shouldFinish = false
 
         init(
             continuation: AsyncStream<Base.Element>.Continuation,
-            interval: S.SchedulerTimeType.Stride,
-            scheduler: S
+            interval: TimeInterval,
+            scheduler: AsyncScheduler
         ) {
             self.continuation = continuation
             self.interval = interval
             self.scheduler = scheduler
         }
 
-        func putNext(_ element: Base.Element) {
+        func putNext(_ element: Base.Element) async {
             let currentID = nextID
             dequeue.enqueue(currentID)
             nextID += 1
             
-            Task {
-                await scheduler.sleep(interval)
-                
-                ids[currentID] = element
-                while let first = dequeue.peek(), let savedElement = ids[first] {
-                    dequeue.dequeue()
-                    ids.removeValue(forKey: first)
-                    
-                    yield(savedElement)
-                }
-            }
+            await scheduler.schedule(after: interval, handler: { [weak self] in
+                await self?.processAfterDelay(element: element, currentID: currentID)
+            })
         }
 
         func finish() {
@@ -87,6 +79,16 @@ extension AsyncDelaySequence: AsyncSequence {
             // If there are no elements waiting to be yielded, finish now
             if dequeue.isEmpty {
                 continuation.finish()
+            }
+        }
+        
+        private func processAfterDelay(element: Base.Element, currentID: UInt) {
+            ids[currentID] = element
+            while let first = dequeue.peek(), let savedElement = ids[first] {
+                dequeue.dequeue()
+                ids.removeValue(forKey: first)
+
+                yield(savedElement)
             }
         }
 
@@ -100,17 +102,17 @@ extension AsyncDelaySequence: AsyncSequence {
         }
     }
 
-    struct Delay<S: Scheduler> {
+    struct Delay {
 //        @usableFromInline
         var baseIterator: Base.AsyncIterator
 //        @usableFromInline
-        let actor: DelayActor<S>
+        let actor: DelayActor
 
         init(
             baseIterator: Base.AsyncIterator,
             continuation: AsyncStream<Base.Element>.Continuation,
-            interval: S.SchedulerTimeType.Stride,
-            scheduler: S
+            interval: TimeInterval,
+            scheduler: AsyncScheduler
         ) {
             self.baseIterator = baseIterator
             self.actor = DelayActor(

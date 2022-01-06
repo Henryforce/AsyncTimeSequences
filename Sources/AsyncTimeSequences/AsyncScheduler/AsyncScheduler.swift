@@ -15,7 +15,7 @@ public protocol AsyncScheduler: Actor {
 }
 
 extension AsyncScheduler {
-    static var main: AsyncScheduler {
+    public static var main: AsyncScheduler {
         MainAsyncScheduler.main
     }
 }

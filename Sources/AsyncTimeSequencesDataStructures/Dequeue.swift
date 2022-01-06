@@ -7,19 +7,14 @@
 
 import Foundation
 
-final class Dequeue<T> {
-    
-    final class DoublyLinkedList<T> {
-        var value: T!
-        weak var previous: DoublyLinkedList<T>?
-        var next: DoublyLinkedList<T>?
-    }
+public final class Dequeue<T> {
     
     var head: DoublyLinkedList<T>?
     var tail: DoublyLinkedList<T>?
-    var count = 0
+    var _count = 0
+    public var count: Int { _count }
     
-    init() {
+    public init() {
         head = DoublyLinkedList<T>()
         tail = DoublyLinkedList<T>()
         
@@ -27,20 +22,20 @@ final class Dequeue<T> {
         tail?.previous = head
     }
     
-    func enqueue(_ value: T) {
-        count += 1
+    public func enqueue(_ value: T) {
+        _count += 1
         add(value)
     }
     
     @discardableResult
-    func dequeue() -> T? {
+    public func dequeue() -> T? {
         guard count > 0, let first = head?.next else { return nil }
-        count -= 1
+        _count -= 1
         disconnect(first)
         return first.value
     }
     
-    func peek() -> T? {
+    public func peek() -> T? {
         guard let first = head?.next else { return nil }
         return first.value
     }
@@ -62,5 +57,5 @@ final class Dequeue<T> {
 }
 
 extension Dequeue {
-    var isEmpty: Bool { count == .zero }
+    public var isEmpty: Bool { _count == .zero }
 }

@@ -6,8 +6,9 @@
 //
 
 import Foundation
+import AsyncTimeSequences
+import AsyncTimeSequencesDataStructures
 
-// TODO: Move to test sub-package
 public actor TestAsyncScheduler: AsyncScheduler {
     
     struct QueueItem {
@@ -20,6 +21,8 @@ public actor TestAsyncScheduler: AsyncScheduler {
     private var savedContinuationCount: Int = .zero
     
     public var now: TimeInterval = Date().timeIntervalSince1970
+    
+    public init() { }
     
     public func schedule(after interval: TimeInterval, handler: @escaping AsyncScheduleHandler) {
         let item = QueueItem(interval: interval + now, handler: handler)

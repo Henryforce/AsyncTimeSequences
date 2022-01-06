@@ -7,6 +7,7 @@
 
 import Foundation
 import Combine
+import AsyncTimeSequencesDataStructures
 
 public struct AsyncDelaySequence<Base: AsyncSequence> {
     @usableFromInline

@@ -10,7 +10,7 @@ These sequences are recommended to be used with AsyncStreams, but as they confor
 
 For all examples, please first consider this sample sequence (remember that you can use any Async Sequence):
 
-```
+```swift
 let asyncSequence = AsyncStream { (continuation:AsyncStream<Int>.Continuation) in
     Task {
         let items = [1,2,3,4,5,6]
@@ -27,31 +27,31 @@ All the async sequences will need an async scheduler. For convenience, there is 
 
 ### Timeout
 
-```
+```swift
 asyncSequence.timeout(for: 2, scheduler: MainAsyncScheduler.default)
 ```
 
 ### Delay
 
-```
+```swift
 asyncSequence.delay(for: 3, scheduler: MainAsyncScheduler.default)
 ```
 
 ### Debounce
 
-```
+```swift
 asyncSequence.debounce(for: 3, scheduler: MainAsyncScheduler.default)
 ```
 
 ### Throttle
 
-```
+```swift
 asyncSequence.throttle(for: 3, scheduler: MainAsyncScheduler.default, latest: true)
 ```
 
 ### MeasureInterval
 
-```
+```swift
 asyncSequence.measureInterval(using: MainAsyncScheduler.default)
 ```
 
@@ -62,3 +62,9 @@ asyncSequence.measureInterval(using: MainAsyncScheduler.default)
 ## Installation
 
 ### Swift Package Manager
+
+In Xcode, select File --> Swift Packages --> Add Package Dependency and then add the following url:
+
+```swift
+https://github.com/Henryforce/AsyncTimeSequences
+```

@@ -1,5 +1,7 @@
 # AsyncTimeSequences
 
+![badge-platforms][] [![badge-spm][]][spm]
+
 (Work in Progress)
 
 This is a convenient package to add missing time async sequences such as debounce, delay, timeout...
@@ -68,3 +70,9 @@ In Xcode, select File --> Swift Packages --> Add Package Dependency and then add
 ```swift
 https://github.com/Henryforce/AsyncTimeSequences
 ```
+
+[badge-platforms]: https://img.shields.io/badge/platforms-macOS%20%7C%20iOS%20%7C%20tvOS%20%7C%20watchOS-lightgrey.svg
+
+[badge-spm]: https://img.shields.io/badge/Swift%20Package%20Manager-compatible-brightgreen.svg
+
+[spm]: https://github.com/apple/swift-package-manager

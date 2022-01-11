@@ -7,7 +7,7 @@
 
 import Foundation
 import AsyncTimeSequences
-import AsyncTimeSequencesDataStructures
+import DataStructures
 
 public actor TestAsyncScheduler: AsyncScheduler {
     

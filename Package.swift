@@ -34,6 +34,7 @@ let package = Package(
         .target(
             name: "AsyncTimeSequencesSupport",
             dependencies: [
+                "AsyncTimeSequences",
                 "DataStructures"
             ],
             path: "Sources/AsyncTimeSequencesSupport"

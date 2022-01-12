@@ -6,7 +6,6 @@
 //
 
 import XCTest
-import CombineSchedulers
 @testable import AsyncTimeSequences
 import AsyncTimeSequencesSupport
 

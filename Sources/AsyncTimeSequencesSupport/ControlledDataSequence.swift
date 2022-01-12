@@ -7,37 +7,41 @@
 
 import Foundation
 
-struct ControlledDataSequence<T>: AsyncSequence {
-    typealias Element = T
+/// This is a really convenient sequence designed to ease the testing of async sequences.
+/// It provides access to the ControlledDataIterator, which is critical for testing.
+public struct ControlledDataSequence<T>: AsyncSequence {
+    public typealias Element = T
 
-    let iterator: ControlledDataIterator<T>
+    public let iterator: ControlledDataIterator<T>
     
-    init(items: [T]) {
+    public init(items: [T]) {
         self.iterator = ControlledDataIterator(items: items)
     }
 
-    func makeAsyncIterator() -> ControlledDataIterator<T> {
+    public func makeAsyncIterator() -> ControlledDataIterator<T> {
         iterator
     }
 }
 
-final class ControlledDataIterator<T>: AsyncIteratorProtocol {
+/// This class extends AsyncIteratorProtocol in order to provide an object that returns
+/// elements on next(). The critical function in this class is waitForItemsToBeSent(count),
+/// which allows the owner of this iterator to wait until n elements have been dispatched via next().
+public final class ControlledDataIterator<T>: AsyncIteratorProtocol {
     private let dataActor: ControlledDataActor<T>
 
     init(items: [T]) {
         self.dataActor = ControlledDataActor(items: items)
     }
     
-    func next() async throws -> T? {
+    public func next() async throws -> T? {
         return await dataActor.next()
     }
     
-    func waitForItemsToBeSent(_ count: Int) async {
+    public func waitForItemsToBeSent(_ count: Int) async {
         await dataActor.waitForItemsToBeSent(count)
     }
 }
 
-// TODO: move this to the support package
 actor ControlledDataActor<T> {
     let items: [T]
     var allowedItemsToBeSentCount = Int.zero

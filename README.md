@@ -2,11 +2,13 @@
 
 ![badge-platforms][] [![badge-spm][]][spm]
 
-(Work in Progress)
+This is a convenient package to add missing time async sequences such as debounce, throttle delay, timeout and measure interval.
 
-This is a convenient package to add missing time async sequences such as debounce, delay, timeout...
+These sequences are recommended to be used with AsyncStreams, but as they conform to the AsyncSequence Protocol the possibilities are endless.
 
-These sequences are recommended to be used with AsyncStreams, but as they conform to AsyncSequence the possibilities are endless.
+## Compatibility
+
+This package is supported on Xcode 13.2+ targeting iOS 13+, MacOS 10.15+, WatchOS 6+ and TvOS 13+.
 
 ## How to use
 
@@ -59,7 +61,71 @@ asyncSequence.measureInterval(using: MainAsyncScheduler.default)
 
 ## How to test
 
-(Coming soon)
+Properly testing time sequences requires some setup. Ideally, it is recommended to inject the scheduler, that will execute the time handling of your sequences, into your logic object.
+
+By injecting the scheduler, you can for example inject a test scheduler to manipulate the time operators.
+
+It is recommended to use the TestAsyncScheduler included in the AsyncTimeSequencesSupport sub-package. It has some really convenient function to manipulate time:
+
+```swift
+let scheduler = AsyncTestScheduler()
+scheduler.advance(by: 3.0) // Advances the time virtually and executes scheduled jobs immediately without actually waiting the time interval specified
+```
+
+An example on how to inject the schduler if you have a view model:
+
+```swift
+final class MyViewModel {
+
+    private let scheduler: AsyncScheduler
+
+    init(
+        scheduler: AsyncScheduler = MainAsyncScheduler.default // Allow injection while providing a default scheduler
+    ) {
+        self.scheduler = scheduler
+    }
+    
+    func debounceSequence<T: AsyncSequence>(_ sequence: T) {
+        let debounceSequence = sequence.debounce(for: 3.0, scheduler: scheduler)
+        
+        Task {
+            for await value in debounceSequence {
+                // do something that produces an output which can be evaluated and asserted during testing...
+            }
+        }
+    }
+
+}
+```
+
+```swift
+import AsyncTimeSequences
+import AsyncTimeSequencesSupport
+
+...
+
+func testAsyncDebounceSequence() async {
+    // Given
+    let scheduler = TestAsyncScheduler()
+    let viewModel = MyViewModel(scheduler: scheduler)
+    let items = [1,5,10,15,20]
+    let expectedItems = [20]
+    let baseDelay = 3.0
+    var receivedItems = [Int]()
+    
+    // When
+    let sequence = ControlledDataSequence(items: items)
+    viewModel.debounceSequence()
+
+    // If we don't wait for jobs to get scheduled, advancing the scheduler does virtually nothing...
+    await sequence.iterator.waitForItemsToBeSent(items.count)
+    await scheduler.advance(by: baseDelay)
+    
+    // your code to process the view model output...
+}
+```
+
+If you need further code examples, you can take a look at the tests for this package library. They rely heavily on the AsyncTestScheduler and the ControlledDataSequence classes, which are included in the AsyncTimeSequencesSupport sub-package.
 
 ## Installation
 
@@ -70,6 +136,11 @@ In Xcode, select File --> Swift Packages --> Add Package Dependency and then add
 ```swift
 https://github.com/Henryforce/AsyncTimeSequences
 ```
+
+There are two package included:
+
+- AsyncTimeSequences - async time sequences extensions
+- AsyncTimeSequencesSupport - async time sequences support classes for testing. (Recommended to include only in your test targets)
 
 [badge-platforms]: https://img.shields.io/badge/platforms-macOS%20%7C%20iOS%20%7C%20tvOS%20%7C%20watchOS-lightgrey.svg
 

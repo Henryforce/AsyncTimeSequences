@@ -2,7 +2,7 @@
 
 ![badge-platforms][] [![badge-spm][]][spm]
 
-This is a convenient package to add missing time async sequences such as debounce, throttle delay, timeout and measure interval.
+This is a convenient package to add missing time async sequences such as debounce, throttle, delay, timeout and measure interval.
 
 These sequences are recommended to be used with AsyncStreams, but as they conform to the AsyncSequence Protocol the possibilities are endless.
 
@@ -27,7 +27,7 @@ let asyncSequence = AsyncStream { (continuation:AsyncStream<Int>.Continuation) i
 }
 ```
 
-All the async sequences will need an async scheduler. For convenience, there is one already bundled with this package. You should be good with the main one provided. But you are free to add your custom one if required.
+All the async sequences will need an async scheduler. For convenience, there is one already bundled with this package. You should be good with the main one provided. But you are free to add your custom one if required (by conforming to the AsyncScheduler protocol).
 
 ### Timeout
 
@@ -65,7 +65,7 @@ Properly testing time sequences requires some setup. Ideally, it is recommended 
 
 By injecting the scheduler, you can for example inject a test scheduler to manipulate the time operators.
 
-It is recommended to use the TestAsyncScheduler included in the AsyncTimeSequencesSupport sub-package. It has some really convenient function to manipulate time:
+It is recommended to use the TestAsyncScheduler included in the AsyncTimeSequencesSupport sub-package. It has a really convenient function to manipulate time:
 
 ```swift
 let scheduler = AsyncTestScheduler()

@@ -7,7 +7,6 @@
 
 import Foundation
 import Combine
-import DataStructures
 
 public struct AsyncDelaySequence<Base: AsyncSequence> {
     @usableFromInline
@@ -48,9 +47,7 @@ extension AsyncDelaySequence: AsyncSequence {
         let interval: TimeInterval
         let scheduler: AsyncScheduler
         
-        var dequeue = Dequeue<UInt>()
-        var ids = [UInt: Base.Element]()
-        var nextID: UInt = 0
+        var counter = 0
         var finishedContinuation: CheckedContinuation<Void, Never>?
 
         init(
@@ -64,18 +61,16 @@ extension AsyncDelaySequence: AsyncSequence {
         }
 
         func putNext(_ element: Base.Element) async {
-            let currentID = nextID
-            dequeue.enqueue(currentID)
-            nextID += 1
+            counter += 1
             
             await scheduler.schedule(after: interval, handler: { [weak self] in
-                await self?.processAfterDelay(element: element, currentID: currentID)
+                await self?.yield(element)
             })
         }
 
         func finish() async {
             // If there are no elements waiting to be yielded, finish now
-            if dequeue.isEmpty {
+            if counter == .zero {
                 continuation.finish()
             } else {
                 // Keep the owner of the actor waiting for the end to avoid having this actor released from memory
@@ -84,22 +79,14 @@ extension AsyncDelaySequence: AsyncSequence {
                 })
             }
         }
-        
-        private func processAfterDelay(element: Base.Element, currentID: UInt) {
-            ids[currentID] = element
-            while let first = dequeue.peek(), let savedElement = ids[first] {
-                dequeue.dequeue()
-                ids.removeValue(forKey: first)
-
-                yield(savedElement)
-            }
-        }
 
         private func yield(_ element: Base.Element) {
+            counter -= 1
+            
             continuation.yield(element)
             
-            // If finished has been triggered and there are no more items in the queue, finish now
-            if let finishedContinuation = finishedContinuation, dequeue.isEmpty {
+            // If finished has been triggered and there are no more items waiting to be delayed, finish now
+            if let finishedContinuation = finishedContinuation, counter == .zero {
                 continuation.finish()
                 finishedContinuation.resume()
                 self.finishedContinuation = nil

@@ -7,7 +7,6 @@
 
 import Foundation
 import AsyncTimeSequences
-import DataStructures
 
 /// This class conforms to AsyncScheduler and provides convenient functions to easily test async time sequences.
 public actor TestAsyncScheduler: AsyncScheduler {
@@ -25,7 +24,7 @@ public actor TestAsyncScheduler: AsyncScheduler {
     
     public init() { }
     
-    /// Schedule a specific async handler to be executed after interval.
+    /// Schedule an async handler to be executed after a specific interval.
     /// All the async handler will be enqueued until advance() is called for processing.
     /// This function will also check if n jobs have been scheduled and try to resume a
     /// saved continuation set during waitForScheduledJobs().

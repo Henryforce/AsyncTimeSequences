@@ -11,14 +11,6 @@ import AsyncTimeSequencesSupport
 
 final class AsyncDelaySequence_Tests: XCTestCase {
     
-    override func setUpWithError() throws {
-        // Put setup code here. This method is called before the invocation of each test method in the class.
-    }
-
-    override func tearDownWithError() throws {
-        // Put teardown code here. This method is called after the invocation of each test method in the class.
-    }
-    
     func testAsyncDelaySequence() async {
         // Given
         let scheduler = TestAsyncScheduler()
@@ -45,6 +37,44 @@ final class AsyncDelaySequence_Tests: XCTestCase {
         
         // Then
         XCTAssertEqual(receivedItems, expectedItems)
+    }
+    
+    func testAsyncDelaySequenceWithPartialTimeAdvances() async {
+        // Given
+        let scheduler = TestAsyncScheduler()
+        let items = [1,5,10,15,20]
+        let expectedFirstItems = [1, 5, 10]
+        let expectedSecondItems = [15, 20]
+        let baseDelay = 5.0
+        var receivedFirstItems = [Int]()
+        var receivedSecondItems = [Int]()
+        
+        // When
+        let sequence = ControlledDataSequence(items: items)
+        var iterator = sequence
+            .delay(
+                for: baseDelay,
+                scheduler: scheduler
+            ).makeAsyncIterator()
+
+        // If we don't wait for jobs to get scheduled, advancing the scheduler does virtually nothing...
+        await sequence.iterator.waitForItemsToBeSent(expectedFirstItems.count)
+        await scheduler.advance(by: baseDelay)
+        
+        while receivedFirstItems.count < expectedFirstItems.count, let value = await iterator.next() {
+            receivedFirstItems.append(value)
+        }
+        
+        await sequence.iterator.waitForItemsToBeSent(expectedSecondItems.count)
+        await scheduler.advance(by: baseDelay)
+        
+        while receivedSecondItems.count < expectedSecondItems.count, let value = await iterator.next() {
+            receivedSecondItems.append(value)
+        }
+        
+        // Then
+        XCTAssertEqual(receivedFirstItems, expectedFirstItems)
+        XCTAssertEqual(receivedSecondItems, expectedSecondItems)
     }
 
 }

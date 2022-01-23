@@ -4,7 +4,7 @@
 
 This is a convenient package to add missing time async sequences such as debounce, throttle, delay, timeout and measure interval.
 
-These sequences are recommended to be used with AsyncStreams, but as they conform to the AsyncSequence Protocol the possibilities are endless.
+These sequences work with any AsyncSequence (such as AsyncStream), and as they conform to the AsyncSequence Protocol the possibilities are endless.
 
 ## Compatibility
 
@@ -12,7 +12,7 @@ This package is supported on Xcode 13.2+ targeting iOS 13+, MacOS 10.15+, WatchO
 
 ## How to use
 
-For all examples, please first consider this sample sequence (remember that you can use any Async Sequence):
+For all examples, please first consider this sample sequence (remember that you can use any AsyncSequence):
 
 ```swift
 let asyncSequence = AsyncStream { (continuation:AsyncStream<Int>.Continuation) in
@@ -27,7 +27,7 @@ let asyncSequence = AsyncStream { (continuation:AsyncStream<Int>.Continuation) i
 }
 ```
 
-All the async sequences will need an async scheduler. For convenience, there is one already bundled with this package. You should be good with the main one provided. But you are free to add your custom one if required (by conforming to the AsyncScheduler protocol).
+All the AsyncTimeSequences will need an AsynScheduler object. For convenience, there is one already bundled with this package. You should be good with the main one provided. But you are free to add your custom one if required (by conforming to the AsyncScheduler protocol).
 
 ### Timeout
 
@@ -61,11 +61,11 @@ asyncSequence.measureInterval(using: MainAsyncScheduler.default)
 
 ## How to test
 
-Properly testing time sequences requires some setup. Ideally, it is recommended to inject the scheduler, that will execute the time handling of your sequences, into your logic object.
+Properly testing these time sequences requires some setup. Ideally, it is recommended to inject the scheduler, that will execute the time handling of your sequences, into your logic object.
 
 By injecting the scheduler, you can for example inject a test scheduler to manipulate the time operators.
 
-It is recommended to use the TestAsyncScheduler included in the AsyncTimeSequencesSupport sub-package. It has a really convenient function to manipulate time:
+It is recommended to use the TestAsyncScheduler included in the AsyncTimeSequencesSupport sub-package. It has some really convenient functions to manipulate time:
 
 ```swift
 let scheduler = AsyncTestScheduler()
@@ -140,7 +140,7 @@ https://github.com/Henryforce/AsyncTimeSequences
 There are two package included:
 
 - AsyncTimeSequences - async time sequences extensions
-- AsyncTimeSequencesSupport - async time sequences support classes for testing. (Recommended to include only in your test targets)
+- AsyncTimeSequencesSupport - async-time-sequences support classes for testing. (Recommended to include only in your test targets)
 
 [badge-platforms]: https://img.shields.io/badge/platforms-macOS%20%7C%20iOS%20%7C%20tvOS%20%7C%20watchOS-lightgrey.svg
 

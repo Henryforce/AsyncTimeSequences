@@ -12,12 +12,12 @@ final class AsyncSchedulerTests: XCTestCase {
 
     func testMainAsyncSchedulerSortsScheduledClosures() async {
         // Given
-        let scheduler = MainAsyncScheduler.default
+        let scheduler = MainAsyncScheduler()
         
         // When
         let (expectedResult, result) = await subTest(with: scheduler)
-        let isQueueEmpty = await scheduler.queue.isEmpty
-        let allItemsCompleted = await scheduler.completedElementIds.isEmpty
+        let isQueueEmpty = await scheduler.isQueueEmpty()
+        let allItemsCompleted = await scheduler.areAllScheduledItemsCompleted()
         
         // Then
         XCTAssertEqual(expectedResult, result)
@@ -27,8 +27,13 @@ final class AsyncSchedulerTests: XCTestCase {
     
     // Uncomment to see the flaky behavior of a scheduler without time-based ordering
 //    func testFakeAsyncScheduler() async {
+//        // Given
 //        let scheduler = FlakyAsyncScheduler()
+//
+//        // When
 //        let (expectedResult, result) = await subTest(with: scheduler)
+//
+//        // Then
 //        XCTAssertEqual(expectedResult, result)
 //    }
 //
@@ -69,4 +74,13 @@ final class AsyncSchedulerTests: XCTestCase {
         return (expectedResult, result)
     }
 
+}
+
+/// This extension was defined to bypass a possible bug on actors on the current build version.
+/// By some reason, accessing actor properties directly can sometimes result in a crash even
+/// if accessing them via await. A workaround was found accessing the properties via an async
+/// function. This workaround is aimed to be temporal and further investigation is required.
+extension MainAsyncScheduler {
+    func isQueueEmpty() async -> Bool { queue.isEmpty }
+    func areAllScheduledItemsCompleted() async -> Bool { completedElementIds.isEmpty }
 }

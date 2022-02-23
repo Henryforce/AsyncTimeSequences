@@ -11,7 +11,9 @@ public typealias AsyncSchedulerHandler = () async -> Void
 
 public protocol AsyncScheduler: Actor {
     var now: TimeInterval { get }
-    func schedule(after: TimeInterval, handler: @escaping AsyncSchedulerHandler)
+    
+    @discardableResult
+    func schedule(after: TimeInterval, handler: @escaping AsyncSchedulerHandler) -> Task<Void, Never>
 }
 
 public actor MainAsyncScheduler: AsyncScheduler {
@@ -20,6 +22,7 @@ public actor MainAsyncScheduler: AsyncScheduler {
     var queue = PriorityQueue<AsyncSchedulerHandlerElement>(type: .min)
     var idCounter: UInt = 0
     var completedElementIds = Set<UInt>()
+    var cancelledElementIds = Set<UInt>()
     
     public var now: TimeInterval {
         Date().timeIntervalSince1970
@@ -27,8 +30,17 @@ public actor MainAsyncScheduler: AsyncScheduler {
     
     /// Schedule async-closures to be executed in order based on the timeinterval provided.
     ///
+    /// - parameter after: TimeInterval to wait until execution
+    /// - parameter handler: async closure to be executed when 'after' time elapses
+    ///
+    /// - Returns: reference to a Task which supports cancellation
+    ///
     /// - Complexity: O(log n) where n is the number of elements currently scheduled
-    public func schedule(after: TimeInterval, handler: @escaping AsyncSchedulerHandler) {
+    @discardableResult
+    public func schedule(
+        after: TimeInterval,
+        handler: @escaping AsyncSchedulerHandler
+    ) -> Task<Void, Never> {
         let currentId = idCounter
         let element = AsyncSchedulerHandlerElement(
             handler: handler,
@@ -39,9 +51,9 @@ public actor MainAsyncScheduler: AsyncScheduler {
         
         increaseCounterId()
         
-        Task {
+        return Task {
             try? await Task.sleep(nanoseconds: UInt64(after * 1000000000))
-            await complete(currentId: currentId)
+            await complete(currentId: currentId, cancelled: Task.isCancelled)
         }
     }
     
@@ -59,13 +71,25 @@ public actor MainAsyncScheduler: AsyncScheduler {
     /// introduced to some scheduled async-closures. Ideally, this would be in the
     /// order of micro/nanoseconds depending of the system load.
     ///
+    /// - parameter currentId: integer variable denoting handler/task id
+    /// - parameter cancelled: boolean flag required to determine whether or not to execute the handler
+    ///
     /// - Complexity: O(log n) where n is the number of elements currently scheduled
-    private func complete(currentId: UInt) async {
+    private func complete(currentId: UInt, cancelled: Bool) async {
         completedElementIds.insert(currentId)
+        if cancelled {
+            cancelledElementIds.insert(currentId)
+        }
         
         while let minElement = queue.peek, completedElementIds.contains(minElement.id) {
             queue.removeFirst()
             completedElementIds.remove(minElement.id)
+            // If the current minimum element id is not cancelled, proceed to
+            // complete its handler. Otherwise, skip and remove it from the set
+            guard !cancelledElementIds.contains(minElement.id) else {
+                cancelledElementIds.remove(minElement.id)
+                continue
+            }
             await minElement.handler()
         }
     }

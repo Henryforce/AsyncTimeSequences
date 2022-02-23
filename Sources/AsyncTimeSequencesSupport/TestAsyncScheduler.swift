@@ -28,11 +28,17 @@ public actor TestAsyncScheduler: AsyncScheduler {
     /// All the async handler will be enqueued until advance() is called for processing.
     /// This function will also check if n jobs have been scheduled and try to resume a
     /// saved continuation set during waitForScheduledJobs().
-    public func schedule(after interval: TimeInterval, handler: @escaping AsyncSchedulerHandler) {
+    public func schedule(
+        after interval: TimeInterval,
+        handler: @escaping AsyncSchedulerHandler
+    ) -> Task<Void, Never> {
         let item = QueueItem(interval: interval + now, handler: handler)
         queue.enqueue(item)
         
         checkForSavedContinuation()
+        
+        // TODO: decide whether or not to support cancellation with this Task
+        return Task { }
     }
     
     /// Advances local time interval and executes all enqueued async handlers that are

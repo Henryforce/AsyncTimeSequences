@@ -25,6 +25,48 @@ final class AsyncSchedulerTests: XCTestCase {
         XCTAssertTrue(allItemsCompleted)
     }
     
+    /// NOTE: This is a slow test, which depends on time waiting in the order of milliseconds
+    func testMainAsyncSchedulerReturnsACancellableTask() async {
+        // Given
+        let scheduler = MainAsyncScheduler()
+        let firstExpectation = XCTestExpectation(description: "First Expectation")
+        let secondExpectation = XCTestExpectation(description: "Second Expectation")
+        var setCounter = Set<Int>()
+        
+        // When
+        // schedule after 100us
+        await scheduler.schedule(after: 0.0001) {
+            setCounter.insert(1)
+            firstExpectation.fulfill()
+        }
+        // schedule after 15 ms
+        let cancellableTask = await scheduler.schedule(after: 0.030) {
+            setCounter.insert(2)
+            XCTFail("This should be triggered once cancelled")
+        }
+        // Without cancelling the task, it would execute and fail
+        cancellableTask.cancel()
+        // schedule after 100us
+        await scheduler.schedule(after: 0.0001) {
+            setCounter.insert(3)
+            secondExpectation.fulfill()
+        }
+        
+        wait(for: [firstExpectation, secondExpectation], timeout: 1.0)
+        
+        // The cancelled task is scheduled after 30 ms, hence waiting for 50ms
+        try? await Task.sleep(milliseconds: 50)
+        
+        let isQueueEmpty = await scheduler.isQueueEmpty()
+        let allItemsCompleted = await scheduler.areAllScheduledItemsCompleted()
+        
+        // Then
+        XCTAssertFalse(setCounter.contains(2))
+        XCTAssertEqual(setCounter, Set([1, 3]))
+        XCTAssertTrue(isQueueEmpty)
+        XCTAssertTrue(allItemsCompleted)
+    }
+    
     // Uncomment to see the flaky behavior of a scheduler without time-based ordering
 //    func testFakeAsyncScheduler() async {
 //        // Given
@@ -78,7 +120,7 @@ final class AsyncSchedulerTests: XCTestCase {
 
 /// This extension was defined to bypass a possible bug on actors on the current build version.
 /// By some reason, accessing actor properties directly can sometimes result in a crash even
-/// if accessing them via await. A workaround was found accessing the properties via an async
+/// if accessing them via await. A workaround was found: accessing the properties via an async
 /// function. This workaround is aimed to be temporal and further investigation is required.
 extension MainAsyncScheduler {
     func isQueueEmpty() async -> Bool { queue.isEmpty }

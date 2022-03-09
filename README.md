@@ -6,7 +6,7 @@ This is a convenient package to add missing time async sequences such as debounc
 
 These sequences work with any AsyncSequence (such as AsyncStream), and as they conform to the AsyncSequence Protocol the possibilities are endless.
 
-This library relies on an AsynScheduler-conforming class that guarantees async execution order. Due to the nature of the Swift Async architecture, the execution of Tasks is not deterministic and in order to guarantee the order of time operations it is required to add extra code handling. This is critical for many time  operators such as Debounce and Delay. The AsyncScheduler class provided in this library promises async task execution order and cancellation.
+This library relies on an AsynScheduler-conforming class that guarantees async execution order. Due to the nature of the Swift Async architecture, the execution of Tasks is not deterministic and to guarantee the order of time operations it becomes necessary to add further handling. This is critical for many time operators such as Debounce and Delay. The AsyncScheduler class provided in this library promises async task execution following FIFO and cancellation.
 
 ## Compatibility
 

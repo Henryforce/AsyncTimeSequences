@@ -19,10 +19,10 @@ public protocol AsyncScheduler: Actor {
 public actor MainAsyncScheduler: AsyncScheduler {
     public static let `default` = MainAsyncScheduler()
     
-    var queue = PriorityQueue<AsyncSchedulerHandlerElement>(type: .min)
-    var idCounter: UInt = 0
-    var completedElementIds = Set<UInt>()
-    var cancelledElementIds = Set<UInt>()
+    lazy var queue = MinimumPriorityQueue()
+    lazy var idCounter: UInt = 0
+    lazy var completedElementIds = Set<UInt>()
+    lazy var cancelledElementIds = Set<UInt>()
     
     public var now: TimeInterval {
         Date().timeIntervalSince1970
@@ -47,6 +47,7 @@ public actor MainAsyncScheduler: AsyncScheduler {
             id: currentId,
             time: now + after
         )
+        
         queue.enqueue(element)
         
         increaseCounterId()
@@ -100,22 +101,5 @@ public actor MainAsyncScheduler: AsyncScheduler {
         } else {
             idCounter += 1
         }
-    }
-}
-
-struct AsyncSchedulerHandlerElement: Comparable {
-    let handler: AsyncSchedulerHandler
-    let id: UInt
-    let time: TimeInterval
-    
-    static func < (lhs: AsyncSchedulerHandlerElement, rhs: AsyncSchedulerHandlerElement) -> Bool {
-        if lhs.time == rhs.time {
-            return lhs.id <= rhs.id
-        }
-        return lhs.time < rhs.time
-    }
-    
-    static func == (lhs: AsyncSchedulerHandlerElement, rhs: AsyncSchedulerHandlerElement) -> Bool {
-        return lhs.time == rhs.time && lhs.id == rhs.id
     }
 }

@@ -8,8 +8,8 @@
 import Foundation
 
 extension Array {
-    func element(at index: Int) -> Element? {
-        guard !isEmpty, index >= 0, index < count else { return nil }
-        return self[index]
-    }
+  func element(at index: Int) -> Element? {
+    guard !isEmpty, index >= 0, index < count else { return nil }
+    return self[index]
+  }
 }

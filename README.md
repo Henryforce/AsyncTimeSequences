@@ -29,7 +29,7 @@ let asyncSequence = AsyncStream { (continuation:AsyncStream<Int>.Continuation) i
 }
 ```
 
-All the AsyncTimeSequences will need an AsynScheduler object. For convenience, there is one already bundled with this package. You should be good with the main one provided. But you are free to add your custom one if required (by conforming to the AsyncScheduler protocol).
+All the AsyncTimeSequences will need an AsyncScheduler object. For convenience, there is one already bundled with this package. You should be good with the main one provided. But you are free to add your custom one if required (by conforming to the AsyncScheduler protocol).
 
 ### Timeout
 

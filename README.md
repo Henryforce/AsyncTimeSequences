@@ -63,7 +63,7 @@ asyncSequence.measureInterval(using: MainAsyncScheduler.default)
 
 ## How to test
 
-Properly testing these time sequences requires some setup. Ideally, it is recommended to inject the scheduler, that will execute the time handling of your sequences, into your logic object.
+Properly testing these time sequences requires some setup. Ideally, it is recommended to inject the scheduler, which will execute the time handling of your sequences, into your logic object.
 
 By injecting the scheduler, you can for example inject a test scheduler to manipulate the time operators.
 
@@ -74,7 +74,7 @@ let scheduler = AsyncTestScheduler()
 scheduler.advance(by: 3.0) // Advances the time virtually and executes scheduled jobs immediately without actually waiting the time interval specified
 ```
 
-An example on how to inject the schduler if you have a view model:
+An example on how to inject the scheduler if you have a view model:
 
 ```swift
 final class MyViewModel {
@@ -117,10 +117,12 @@ func testAsyncDebounceSequence() async {
     
     // When
     let sequence = ControlledDataSequence(items: items)
-    viewModel.debounceSequence()
+    viewModel.debounceSequence(sequence)
 
-    // If we don't wait for jobs to get scheduled, advancing the scheduler does virtually nothing...
+    // The ControlledDataSequence can send elements one by one, or up to n elements per one call of
+    // the `waitForItemsToBeSent` method
     await sequence.iterator.waitForItemsToBeSent(items.count)
+    // If we don't wait for jobs to get scheduled, advancing the scheduler does virtually nothing...
     await scheduler.advance(by: baseDelay)
     
     // your code to process the view model output...

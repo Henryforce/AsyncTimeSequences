@@ -53,7 +53,7 @@ final class AsyncSchedulerTests: XCTestCase {
       secondExpectation.fulfill()
     }
 
-    wait(for: [firstExpectation, secondExpectation], timeout: 1.0)
+    await fulfillment(of: [firstExpectation, secondExpectation], timeout: 1.0)
 
     // The cancelled task is scheduled after 30 ms, hence waiting for 50ms
     try? await Task.sleep(milliseconds: 50)

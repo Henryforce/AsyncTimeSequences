@@ -16,7 +16,7 @@ struct AsyncSchedulerHandlerElement {
 extension AsyncSchedulerHandlerElement: Comparable {
   static func < (lhs: AsyncSchedulerHandlerElement, rhs: AsyncSchedulerHandlerElement) -> Bool {
     if lhs.time == rhs.time {
-      return lhs.id <= rhs.id
+      return lhs.id < rhs.id
     }
     return lhs.time < rhs.time
   }

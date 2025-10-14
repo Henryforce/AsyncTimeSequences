@@ -8,7 +8,7 @@
 import Combine
 import Foundation
 
-extension AsyncSequence {
+extension AsyncSequence where Element: Sendable {
   @inlinable
   public __consuming func throttle(
     for interval: TimeInterval,
@@ -19,7 +19,7 @@ extension AsyncSequence {
   }
 }
 
-public struct AsyncThrottleSequence<Base: AsyncSequence> {
+public struct AsyncThrottleSequence<Base: AsyncSequence> where Base.Element: Sendable {
   @usableFromInline
   let base: Base
 
@@ -41,7 +41,7 @@ public struct AsyncThrottleSequence<Base: AsyncSequence> {
   }
 }
 
-extension AsyncThrottleSequence: AsyncSequence {
+extension AsyncThrottleSequence: AsyncSequence where Base.Element: Sendable {
 
   public typealias Element = Base.Element
   /// The type of iterator that produces elements of the sequence.
@@ -131,7 +131,7 @@ extension AsyncThrottleSequence: AsyncSequence {
   }
 
   @usableFromInline
-  struct Throttle {
+  struct Throttle: @unchecked Sendable {
     private var baseIterator: Base.AsyncIterator
     private let actor: ThrottleActor
 
@@ -164,14 +164,14 @@ extension AsyncThrottleSequence: AsyncSequence {
   @inlinable
   public __consuming func makeAsyncIterator() -> AsyncStream<Base.Element>.Iterator {
     return AsyncStream { (continuation: AsyncStream<Base.Element>.Continuation) in
+      var throttle = Throttle(
+        baseIterator: base.makeAsyncIterator(),
+        continuation: continuation,
+        interval: interval,
+        scheduler: scheduler,
+        latest: latest
+      )
       Task {
-        var throttle = Throttle(
-          baseIterator: base.makeAsyncIterator(),
-          continuation: continuation,
-          interval: interval,
-          scheduler: scheduler,
-          latest: latest
-        )
         await throttle.start()
       }
     }.makeAsyncIterator()

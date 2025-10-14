@@ -16,7 +16,7 @@ final class AsyncDebounceSequence_Tests: XCTestCase {
   func testAsyncDebounceSequence() async {
     // Given
     let scheduler = TestAsyncScheduler()
-    let items = [1, 5, 10, 15, 20]
+    let items: [Int] = [1, 5, 10, 15, 20]
     let expectedItems = [20]
     let baseDelay = 5.0
     var receivedItems = [Int]()

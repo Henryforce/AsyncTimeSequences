@@ -8,7 +8,7 @@
 import Combine
 import Foundation
 
-public struct AsyncMeasureIntervalSequence<Base: AsyncSequence> {
+public struct AsyncMeasureIntervalSequence<Base: AsyncSequence> where Base.Element: Sendable {
   @usableFromInline
   let base: Base
 
@@ -22,7 +22,7 @@ public struct AsyncMeasureIntervalSequence<Base: AsyncSequence> {
   }
 }
 
-extension AsyncSequence {
+extension AsyncSequence where Element: Sendable {
   @inlinable
   public __consuming func measureInterval(
     using scheduler: AsyncScheduler
@@ -31,7 +31,7 @@ extension AsyncSequence {
   }
 }
 
-extension AsyncMeasureIntervalSequence: AsyncSequence {
+extension AsyncMeasureIntervalSequence: AsyncSequence where Base.Element: Sendable {
 
   public typealias Element = TimeInterval
   /// The type of iterator that produces elements of the sequence.
@@ -72,7 +72,7 @@ extension AsyncMeasureIntervalSequence: AsyncSequence {
   }
 
   @usableFromInline
-  struct MeasureInterval {
+  struct MeasureInterval: @unchecked Sendable {
     private var baseIterator: Base.AsyncIterator
     private let actor: MeasureIntervalActor
 
@@ -101,12 +101,12 @@ extension AsyncMeasureIntervalSequence: AsyncSequence {
   @inlinable
   public __consuming func makeAsyncIterator() -> AsyncStream<TimeInterval>.Iterator {
     return AsyncStream { (continuation: AsyncStream<TimeInterval>.Continuation) in
+      var measureInterval = MeasureInterval(
+        baseIterator: base.makeAsyncIterator(),
+        continuation: continuation,
+        scheduler: scheduler
+      )
       Task {
-        var measureInterval = MeasureInterval(
-          baseIterator: base.makeAsyncIterator(),
-          continuation: continuation,
-          scheduler: scheduler
-        )
         await measureInterval.start()
       }
     }.makeAsyncIterator()

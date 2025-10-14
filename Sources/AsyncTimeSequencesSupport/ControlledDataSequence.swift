@@ -9,7 +9,7 @@ import Foundation
 
 /// This is a really convenient sequence designed to ease the testing of async sequences.
 /// It provides access to the ControlledDataIterator, which is critical for testing.
-public struct ControlledDataSequence<T>: AsyncSequence {
+public struct ControlledDataSequence<T: Sendable>: AsyncSequence {
   public typealias Element = T
 
   public let iterator: ControlledDataIterator<T>
@@ -26,7 +26,7 @@ public struct ControlledDataSequence<T>: AsyncSequence {
 /// This class extends AsyncIteratorProtocol in order to provide an object that returns
 /// elements on next(). The critical function in this class is waitForItemsToBeSent(count),
 /// which allows the owner of this iterator to wait until n elements have been dispatched via next().
-public final class ControlledDataIterator<T>: AsyncIteratorProtocol {
+public final class ControlledDataIterator<T: Sendable>: AsyncIteratorProtocol {
   private let dataActor: ControlledDataActor<T>
 
   init(items: [T]) {
@@ -42,7 +42,7 @@ public final class ControlledDataIterator<T>: AsyncIteratorProtocol {
   }
 }
 
-actor ControlledDataActor<T> {
+actor ControlledDataActor<T: Sendable> {
   let items: [T]
   var allowedItemsToBeSentCount = Int.zero
   var index = Int.zero

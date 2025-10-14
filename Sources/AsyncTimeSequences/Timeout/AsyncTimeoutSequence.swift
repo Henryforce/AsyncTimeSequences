@@ -8,7 +8,7 @@
 import Combine
 import Foundation
 
-public struct AsyncTimeoutSequence<Base: AsyncSequence> {
+public struct AsyncTimeoutSequence<Base: AsyncSequence> where Base.Element: Sendable {
   @usableFromInline
   let base: Base
 
@@ -26,7 +26,7 @@ public struct AsyncTimeoutSequence<Base: AsyncSequence> {
   }
 }
 
-extension AsyncSequence {
+extension AsyncSequence where Element: Sendable {
   @inlinable
   public __consuming func timeout(
     for interval: TimeInterval,
@@ -41,7 +41,7 @@ public enum AsyncTimeSequenceError: Error {
 }
 
 // TODO: handle continuation.finish being called multiple times
-extension AsyncTimeoutSequence: AsyncSequence {
+extension AsyncTimeoutSequence: AsyncSequence where Base.Element: Sendable {
 
   public typealias Element = Base.Element
   /// The type of iterator that produces elements of the sequence.
@@ -105,7 +105,7 @@ extension AsyncTimeoutSequence: AsyncSequence {
   }
 
   @usableFromInline
-  struct Timeout {
+  struct Timeout: @unchecked Sendable {
     private var baseIterator: Base.AsyncIterator
     private let actor: TimeoutActor
 
@@ -138,13 +138,13 @@ extension AsyncTimeoutSequence: AsyncSequence {
   public __consuming func makeAsyncIterator() -> AsyncThrowingStream<Base.Element, Error>.Iterator {
     return AsyncThrowingStream {
       (continuation: AsyncThrowingStream<Base.Element, Error>.Continuation) in
+      var timeout = Timeout(
+        baseIterator: base.makeAsyncIterator(),
+        continuation: continuation,
+        interval: interval,
+        scheduler: scheduler
+      )
       Task {
-        var timeout = Timeout(
-          baseIterator: base.makeAsyncIterator(),
-          continuation: continuation,
-          interval: interval,
-          scheduler: scheduler
-        )
         await timeout.start()
       }
     }.makeAsyncIterator()

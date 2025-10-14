@@ -11,6 +11,18 @@ import XCTest
 
 final class AsyncSchedulerTests: XCTestCase {
 
+  private actor SafeCounter {
+    private var setCounter = Set<Int>()
+
+    func insert(_ value: Int) {
+      setCounter.insert(value)
+    }
+
+    func retrieveSet() -> Set<Int> {
+      return setCounter
+    }
+  }
+
   func testMainAsyncSchedulerSortsScheduledClosures() async {
     // Given
     let scheduler = MainAsyncScheduler()
@@ -32,24 +44,24 @@ final class AsyncSchedulerTests: XCTestCase {
     let scheduler = MainAsyncScheduler()
     let firstExpectation = XCTestExpectation(description: "First Expectation")
     let secondExpectation = XCTestExpectation(description: "Second Expectation")
-    var setCounter = Set<Int>()
+    let safeCounter = SafeCounter()
 
     // When
     // schedule after 100us
     await scheduler.schedule(after: 0.0001) {
-      setCounter.insert(1)
+      await safeCounter.insert(1)
       firstExpectation.fulfill()
     }
     // schedule after 15 ms
     let cancellableTask = await scheduler.schedule(after: 0.030) {
-      setCounter.insert(2)
+      await safeCounter.insert(2)
       XCTFail("This should be triggered once cancelled")
     }
     // Without cancelling the task, it would execute and fail
     cancellableTask.cancel()
     // schedule after 100us
     await scheduler.schedule(after: 0.0001) {
-      setCounter.insert(3)
+      await safeCounter.insert(3)
       secondExpectation.fulfill()
     }
 
@@ -62,6 +74,7 @@ final class AsyncSchedulerTests: XCTestCase {
     let allItemsCompleted = await scheduler.areAllScheduledItemsCompleted()
 
     // Then
+    let setCounter = await safeCounter.retrieveSet()
     XCTAssertFalse(setCounter.contains(2))
     XCTAssertEqual(setCounter, Set([1, 3]))
     XCTAssertTrue(isQueueEmpty)
@@ -101,7 +114,7 @@ final class AsyncSchedulerTests: XCTestCase {
     let timeInterval: TimeInterval = 0.0001  // 100us
     let safeActorArray = SafeActorArrayWrapper<Int>()
     var expectedResult = [Int]()
-    let maxElements = 100
+    let maxElements = 1000
 
     // When
     for index in 0..<maxElements {

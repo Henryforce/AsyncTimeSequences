@@ -8,7 +8,7 @@
 import Combine
 import Foundation
 
-public struct AsyncDebounceSequence<Base: AsyncSequence> {
+public struct AsyncDebounceSequence<Base: AsyncSequence> where Base.Element: Sendable {
   @usableFromInline
   let base: Base
 
@@ -26,7 +26,7 @@ public struct AsyncDebounceSequence<Base: AsyncSequence> {
   }
 }
 
-extension AsyncSequence {
+extension AsyncSequence where Element: Sendable {
   @inlinable
   public __consuming func debounce(
     for interval: TimeInterval,
@@ -36,7 +36,7 @@ extension AsyncSequence {
   }
 }
 
-extension AsyncDebounceSequence: AsyncSequence {
+extension AsyncDebounceSequence: AsyncSequence where Base.Element: Sendable {
 
   public typealias Element = Base.Element
   /// The type of iterator that produces elements of the sequence.
@@ -107,7 +107,7 @@ extension AsyncDebounceSequence: AsyncSequence {
   }
 
   @usableFromInline
-  struct Debounce {
+  struct Debounce: @unchecked Sendable {
     private var baseIterator: Base.AsyncIterator
     private let actor: DebounceActor
 
@@ -138,13 +138,13 @@ extension AsyncDebounceSequence: AsyncSequence {
   @inlinable
   public __consuming func makeAsyncIterator() -> AsyncStream<Base.Element>.Iterator {
     return AsyncStream { (continuation: AsyncStream<Base.Element>.Continuation) in
+      var debounce = Debounce(
+        baseIterator: base.makeAsyncIterator(),
+        continuation: continuation,
+        interval: interval,
+        scheduler: scheduler
+      )
       Task {
-        var debounce = Debounce(
-          baseIterator: base.makeAsyncIterator(),
-          continuation: continuation,
-          interval: interval,
-          scheduler: scheduler
-        )
         await debounce.start()
       }
     }.makeAsyncIterator()

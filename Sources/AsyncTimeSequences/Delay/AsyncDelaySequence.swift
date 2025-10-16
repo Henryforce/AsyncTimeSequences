@@ -8,7 +8,7 @@
 import Combine
 import Foundation
 
-public struct AsyncDelaySequence<Base: AsyncSequence> {
+public struct AsyncDelaySequence<Base: AsyncSequence> where Base.Element: Sendable {
   @usableFromInline
   let base: Base
 
@@ -26,7 +26,7 @@ public struct AsyncDelaySequence<Base: AsyncSequence> {
   }
 }
 
-extension AsyncSequence {
+extension AsyncSequence where Element: Sendable {
   @inlinable
   public __consuming func delay(
     for interval: TimeInterval,
@@ -36,7 +36,7 @@ extension AsyncSequence {
   }
 }
 
-extension AsyncDelaySequence: AsyncSequence {
+extension AsyncDelaySequence: AsyncSequence where Base.Element: Sendable {
 
   public typealias Element = Base.Element
   /// The type of iterator that produces elements of the sequence.
@@ -97,7 +97,7 @@ extension AsyncDelaySequence: AsyncSequence {
   }
 
   @usableFromInline
-  struct Delay {
+  struct Delay: @unchecked Sendable {
     private var baseIterator: Base.AsyncIterator
     private let actor: DelayActor
 
@@ -128,13 +128,13 @@ extension AsyncDelaySequence: AsyncSequence {
   @inlinable
   public __consuming func makeAsyncIterator() -> AsyncStream<Base.Element>.Iterator {
     return AsyncStream { (continuation: AsyncStream<Base.Element>.Continuation) in
+      var delay = Delay(
+        baseIterator: base.makeAsyncIterator(),
+        continuation: continuation,
+        interval: interval,
+        scheduler: scheduler
+      )
       Task {
-        var delay = Delay(
-          baseIterator: base.makeAsyncIterator(),
-          continuation: continuation,
-          interval: interval,
-          scheduler: scheduler
-        )
         await delay.start()
       }
     }.makeAsyncIterator()

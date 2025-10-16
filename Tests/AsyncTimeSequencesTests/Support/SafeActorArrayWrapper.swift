@@ -7,7 +7,7 @@
 
 import Foundation
 
-actor SafeActorArrayWrapper<T> {
+actor SafeActorArrayWrapper<T: Sendable> {
   private var _elements = [T]()
   private var savedCount = 0
   private var savedContinuation: CheckedContinuation<Void, Never>?

@@ -5,7 +5,7 @@ import PackageDescription
 
 let package = Package(
   name: "AsyncTimeSequences",
-  platforms: [.iOS(.v13), .macOS(.v13), .watchOS(.v6), .tvOS(.v13)],
+  platforms: [.iOS(.v13), .macOS(.v13), .watchOS(.v6), .tvOS(.v13), .visionOS(.v1)],
   products: [
     // Products define the executables and libraries a package produces, and make them visible to other packages.
     .library(

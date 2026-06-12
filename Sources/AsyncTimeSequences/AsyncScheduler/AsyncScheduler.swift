@@ -68,7 +68,11 @@ public actor MainAsyncScheduler: AsyncScheduler {
     after: TimeInterval
   ) -> Task<Void, Never> {
     return Task {
-      try? await Task.sleep(for: .seconds(after))
+      if #available(macOS 13.0, iOS 16.0, tvOS 16.0, watchOS 9.0, *) {
+        try? await Task.sleep(for: .seconds(after))
+      } else {
+        try? await Task.sleep(nanoseconds: UInt64(after * 1_000_000_000))
+      }
 
       completedElementIds.insert(currentId)
       if Task.isCancelled {
